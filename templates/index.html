@@ -232,8 +232,14 @@ tr:hover td{background:var(--dk3);}
   </div>
 
   <div class="modal-section">
-    <div class="modal-section-title">🏆 Poids de la paire</div>
-    <div class="modal-fi"><label>Poids (classement FFT)</label><input id="e-poids" type="number" placeholder="ex: 12500"/></div>
+    <div class="modal-section-title">🏆 Classement & Poids</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Classement J1</label><input id="e-clt1" type="number" placeholder="ex: 6500" oninput="calcPoidsEdit()"/></div>
+      <div class="modal-fi"><label>Classement J2</label><input id="e-clt2" type="number" placeholder="ex: 6000" oninput="calcPoidsEdit()"/></div>
+    </div>
+    <div class="modal-fi"><label>Poids de la paire <span style="color:var(--tx2);font-size:9px;">(= somme des 2 classements, calculé auto)</span></label>
+      <input id="e-poids" type="number" placeholder="Calculé automatiquement" style="border-color:var(--or);"/>
+    </div>
   </div>
 
   <div class="modal-section">
@@ -286,7 +292,13 @@ tr:hover td{background:var(--dk3);}
       <div class="modal-fi"><label>Licence J2</label><input id="f-lic2" placeholder="XXXXXXXX"/></div>
       <div class="modal-fi"><label>Tél J2</label><input id="f-tel2" placeholder="06XXXXXXXX"/></div>
     </div>
-    <div class="modal-fi"><label>Poids de la nouvelle paire</label><input id="f-poids" type="number" placeholder="ex: 12500"/></div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Classement J1</label><input id="f-clt1" type="number" placeholder="ex: 6500" oninput="calcPoidsForfait()"/></div>
+      <div class="modal-fi"><label>Classement J2</label><input id="f-clt2" type="number" placeholder="ex: 6000" oninput="calcPoidsForfait()"/></div>
+    </div>
+    <div class="modal-fi"><label>Poids de la nouvelle paire <span style="color:var(--tx2);font-size:9px;">(= somme des 2 classements, calculé auto)</span></label>
+      <input id="f-poids" type="number" placeholder="Calculé automatiquement" style="border-color:var(--or);"/>
+    </div>
   </div>
 
   <div class="modal-section">
@@ -635,6 +647,8 @@ function ouvrirEdit(paireId){
   document.getElementById('e-nom2').value=p.nomJ2||'';
   document.getElementById('e-lic2').value=p.licJ2||'';
   document.getElementById('e-tel2').value=p.telJ2||'';
+  document.getElementById('e-clt1').value='';
+  document.getElementById('e-clt2').value='';
   document.getElementById('e-poids').value=p.poids||'';
   document.getElementById('modal-edit').style.display='flex';
 }
@@ -713,7 +727,7 @@ function ouvrirForfait(paireId){
   document.getElementById('forfait-sub').textContent=`Paire #${paireId}${p.ts?' ('+p.ts+')':''}`;
   document.getElementById('forfait-paire-info').textContent=`${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2} — Poids: ${p.poids}`;
   // Vider les champs
-  ['f-pren1','f-nom1','f-lic1','f-tel1','f-pren2','f-nom2','f-lic2','f-tel2','f-poids'].forEach(id=>document.getElementById(id).value='');
+  ['f-pren1','f-nom1','f-lic1','f-tel1','f-pren2','f-nom2','f-lic2','f-tel2','f-clt1','f-clt2','f-poids'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('modal-forfait').style.display='flex';
 }
 
@@ -798,6 +812,18 @@ function showToast(msg){
   t.style.opacity='1';
   clearTimeout(t._to);
   t._to=setTimeout(()=>t.style.opacity='0',3000);
+}
+
+// ── Calcul auto poids ──
+function calcPoidsEdit(){
+  const c1=parseInt(document.getElementById('e-clt1').value)||0;
+  const c2=parseInt(document.getElementById('e-clt2').value)||0;
+  if(c1&&c2) document.getElementById('e-poids').value=c1+c2;
+}
+function calcPoidsForfait(){
+  const c1=parseInt(document.getElementById('f-clt1').value)||0;
+  const c2=parseInt(document.getElementById('f-clt2').value)||0;
+  if(c1&&c2) document.getElementById('f-poids').value=c1+c2;
 }
 
 function closeModal(id){
