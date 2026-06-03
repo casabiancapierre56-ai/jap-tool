@@ -18,7 +18,7 @@ with open(PDF_B64_PATH) as f:
     PDF_VIERGE_B64 = f.read().strip()
 
 FDR_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'feuille_route_b64.txt')
-FDR_VIERGE_B64 = None  # Chargé à la demande
+FDR_VIERGE_B64 = None
 
 def get_fdr_b64():
     global FDR_VIERGE_B64
@@ -99,76 +99,53 @@ def parse_csv(text):
 
 # ── Construction tableau FFT ─────────────
 def build_tableau(paires, contraintes=None):
-    """
-    contraintes : dict {paire_id: 'HH:MM'} — heure min de disponibilité
-    """
     ts1, ts2   = paires[0], paires[1]
     ts34       = shuffle([paires[2], paires[3]])
     ts58       = shuffle([paires[4], paires[5], paires[6], paires[7]])
     autres     = shuffle(paires[8:])
 
-    # Appliquer contraintes horaires sur les équipes sans BYE
-    # Les paires avec contrainte tardive vont en matchs plus tardifs
     if contraintes:
         def get_contrainte(p):
             return hm_to_min(contraintes.get(str(p['id']), '00:00'))
-        # Trier ts58 et autres selon contraintes (les plus tardives en dernier)
         ts58  = sorted(ts58,  key=get_contrainte)
         autres = sorted(autres, key=get_contrainte)
 
     T = [
-        {'t':'bye','p':ts2},        # 0
-        {'t':'emp'},                 # 1
-        {'t':'eq', 'p':autres[0]},  # 2  ─┐ M1
-        {'t':'ts', 'p':ts58[0]},    # 3  ─┘
-        {'t':'ts', 'p':ts58[1]},    # 4  ─┐ M2
-        {'t':'eq', 'p':autres[1]},  # 5  ─┘
-        {'t':'bye','p':ts34[0]},    # 6
-        {'t':'emp'},                 # 7
-        {'t':'bye','p':ts34[1]},    # 8
-        {'t':'emp'},                 # 9
-        {'t':'ts', 'p':ts58[2]},    # 10 ─┐ M3
-        {'t':'eq', 'p':autres[2]},  # 11 ─┘
-        {'t':'eq', 'p':autres[3]},  # 12 ─┐ M4
-        {'t':'ts', 'p':ts58[3]},    # 13 ─┘
-        {'t':'bye','p':ts1},        # 14
-        {'t':'emp'},                 # 15
+        {'t':'bye','p':ts2},
+        {'t':'emp'},
+        {'t':'eq', 'p':autres[0]},
+        {'t':'ts', 'p':ts58[0]},
+        {'t':'ts', 'p':ts58[1]},
+        {'t':'eq', 'p':autres[1]},
+        {'t':'bye','p':ts34[0]},
+        {'t':'emp'},
+        {'t':'bye','p':ts34[1]},
+        {'t':'emp'},
+        {'t':'ts', 'p':ts58[2]},
+        {'t':'eq', 'p':autres[2]},
+        {'t':'eq', 'p':autres[3]},
+        {'t':'ts', 'p':ts58[3]},
+        {'t':'bye','p':ts1},
+        {'t':'emp'},
     ]
     return T, ts34, ts58
 
-# ── Calcul horaires avec contraintes ─────
+# ── Calcul horaires ──────────────────────
 def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes=None, T=None):
-    """
-    Calcule les horaires en tenant compte :
-    - de deux durées différentes (principal vs classement)
-    - des contraintes horaires par paire
-    """
-    # Matchs principaux (tableau) vs classement
-    matchs_principal   = {1,2,3,4,7,8,9,10,15,16,20}
-    matchs_classement  = {5,6,11,12,13,14,17,18,19}
+    matchs_principal  = {1,2,3,4,7,8,9,10,15,16,20}
+    matchs_classement = {5,6,11,12,13,14,17,18,19}
 
     def duree(num):
         return duree_principal if num in matchs_principal else duree_classement
 
-    # Structure des vagues (2 matchs simultanés max)
     vagues = [
-        [1,2],       # 1/8 vague 1
-        [3,4],       # 1/8 vague 2
-        [5,6],       # classement 9-12
-        [7,8],       # QF vague 1
-        [9,10],      # QF vague 2
-        [11,12],     # classement suite
-        [13,14],     # classement 5-8
-        [15,16],     # SF
-        [17,18],     # classements
-        [19],        # 3/4
-        [20],        # finale
+        [1,2],[3,4],[5,6],[7,8],[9,10],[11,12],
+        [13,14],[15,16],[17,18],[19],[20],
     ]
 
     horaires = {}
     h_cur = heure_debut
 
-    # Mapping match → paires impliquées (pour contraintes)
     match_paires = {}
     if T:
         match_paires[1] = [T[2]['p'], T[3]['p']]
@@ -177,10 +154,7 @@ def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, con
         match_paires[4] = [T[12]['p'], T[13]['p']]
 
     for vague in vagues:
-        # Calculer l'heure de début de cette vague
-        # en tenant compte des contraintes des paires impliquées
         h_vague = hm_to_min(h_cur)
-
         if contraintes and T:
             for num in vague:
                 if num in match_paires:
@@ -189,14 +163,10 @@ def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, con
                             c_min = hm_to_min(contraintes[str(p['id'])])
                             if c_min > h_vague:
                                 h_vague = c_min
-
         h_vague_str = min_to_hm(h_vague)
-
         for i, num in enumerate(vague):
             piste = (i % nb_pistes) + 1
             horaires[num] = (h_vague_str, piste)
-
-        # Avancer au prochain créneau
         dur_max = max(duree(n) for n in vague)
         nb_v = (len(vague) + nb_pistes - 1) // nb_pistes
         h_cur = min_to_hm(h_vague + nb_v * dur_max)
@@ -273,83 +243,67 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
     writer.write(out)
     return out.getvalue()
 
-# -- Generation PDF feuille de route (superposition sur modele vierge)
-FW, FH = 595.5, 842.2
+# ── Génération PDF feuille de route ──────
+FW, FH = 595.5, 842.25
 MATCH_Y_FDR = {
-    1: 720.4, 2: 691.5, 3: 662.6, 4: 633.7,
+    1: 719, 2: 690, 3: 661, 4: 632,
     5: 602.1, 6: 567.9, 7: 533.7, 8: 499.5,
     9: 465.3, 10: 431.2, 11: 397.0, 12: 362.8,
     13: 328.6, 14: 294.4, 15: 260.2, 16: 226.0,
     17: 191.8, 18: 157.7, 19: 123.5
 }
-X_EQ_START = 50
-X_EQ_END   = 413
+X_EQ_START = 62
+X_EQ_END   = 420
 
 def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
-    from pypdf import PdfReader, PdfWriter
-    from reportlab.pdfgen import canvas as rl_canvas
-
     packet = io.BytesIO()
-    c = rl_canvas.Canvas(packet, pagesize=(FW, FH))
+    c = canvas.Canvas(packet, pagesize=(FW, FH))
 
     # Date
     c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(60, 781, date_str.upper() if date_str else '')
 
-    # Effacer zone NOM DES EQUIPES pour matchs 5-19 (texte existant du vierge)
-    for m in matchs:
-        num = m['num']
-        if num < 5 or num > 19: continue
-        y = MATCH_Y_FDR.get(num)
-        if not y: continue
-        c.setFillColorRGB(1, 1, 1)
-        c.rect(X_EQ_START, y - 16, X_EQ_END - X_EQ_START, 32, fill=1, stroke=0)
-
+    # Terrains matchs 1 et 2
+    c.setFont("Helvetica-Bold", 8)
     c.setFillColorRGB(0, 0, 0)
+    c.drawCentredString(527, 714, "DECATHLON")
+    c.drawCentredString(527, 685, "CUPRA")
+
     max_w = X_EQ_END - X_EQ_START - 8
 
     for m in matchs:
         num = m['num']
         y = MATCH_Y_FDR.get(num)
-        if not y: continue
+        if not y:
+            continue
 
         fs = 8.5
 
-        if m.get('pA') and m.get('pB'):
-            pa, pb = m['pA'], m['pB']
-            ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
-            eb = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
-            c.setFont("Helvetica-Bold", fs)
-            while c.stringWidth(ea, "Helvetica-Bold", fs) > max_w and fs > 6:
-                fs -= 0.3
-            c.setFillColorRGB(0, 0, 0)
-            c.drawString(X_EQ_START + 3, y + 4, ea[:60])
-            c.setFont("Helvetica", fs - 0.3)
-            c.setFillColorRGB(0.15, 0.15, 0.15)
-            c.drawString(X_EQ_START + 3, y - 4, eb[:60])
-
-        elif m.get('pB') and m.get('libA'):
-            pb = m['pB']
-            ts_nom = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
-            c.setFont("Helvetica-Bold", fs)
-            c.setFillColorRGB(0, 0, 0)
-            c.drawString(X_EQ_START + 3, y + 4, m['libA'])
-            c.setFont("Helvetica-Bold", fs)
-            c.setFillColorRGB(0.7, 0.1, 0.1)
-            c.drawString(X_EQ_START + 3, y - 4, ts_nom[:60])
-            c.setFillColorRGB(0, 0, 0)
-
-        else:
-            ea = m.get('libA', '')
-            eb = m.get('libB', '')
-            if ea and eb:
-                txt = f"{ea}  VS  {eb}"
+        if num <= 4:
+            # Matchs 1-4 : PaireA     PaireB sur une ligne
+            if m.get('pA') and m.get('pB'):
+                pa, pb = m['pA'], m['pB']
+                ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
+                eb = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
+                texte = f"{ea}     {eb}"
                 c.setFont("Helvetica-Bold", fs)
-                while c.stringWidth(txt, "Helvetica-Bold", fs) > max_w and fs > 6:
-                    fs -= 0.3
+                while c.stringWidth(texte, "Helvetica-Bold", fs) > max_w and fs > 5.5:
+                    fs -= 0.2
                 c.setFillColorRGB(0, 0, 0)
-                c.drawString(X_EQ_START + 3, y + 1, txt)
+                c.drawString(X_EQ_START, y, texte)
+
+        elif num in (7, 8, 9, 10):
+            # QF : TS qualifiée alignée à droite en rouge
+            if m.get('pB'):
+                pb = m['pB']
+                ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
+                c.setFont("Helvetica-Bold", fs)
+                while c.stringWidth(ts_str, "Helvetica-Bold", fs) > max_w and fs > 6:
+                    fs -= 0.3
+                c.setFillColorRGB(0.75, 0.1, 0.05)
+                c.drawRightString(X_EQ_END, y - 7, ts_str)
+                c.setFillColorRGB(0, 0, 0)
 
     c.save()
     packet.seek(0)
@@ -368,16 +322,13 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     writer.write(out)
     return out.getvalue()
 
-
 # ── Validation règlement FFT ─────────────
 def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
     alertes = []
 
-    # 1. Nombre de paires minimum
     if len(paires) < 4:
         alertes.append({'level':'error', 'message': f'Minimum 4 paires requises ({len(paires)} trouvees)'})
 
-    # 2. Doublons de licence
     lm = {}
     for p in paires:
         for l in [p.get('licJ1',''), p.get('licJ2','')]:
@@ -388,7 +339,6 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
             else:
                 lm[lu] = True
 
-    # 3. Formats de jeu
     formats_autorises = ['A1','A2','B1','B2','C1','C2','D1','D2','E','F']
     fmt_upper = format_jeu.upper()
     if not any(f in fmt_upper for f in formats_autorises):
@@ -401,13 +351,11 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
         else:
             alertes.append({'level':'info', 'message': f'Formats differents : Principal={format_jeu[:25]} | Classement={format_jeu_classement[:25]}'})
 
-    # 4. Durées
     if duree_principal < 30:
         alertes.append({'level':'warning', 'message': f'Duree match principal courte ({duree_principal} min)'})
     if duree_classement < 20:
         alertes.append({'level':'warning', 'message': f'Duree match classement courte ({duree_classement} min)'})
 
-    # 5. Fin de tournoi tardive
     h_debut_min = hm_to_min(heure_debut)
     duree_totale = 11 * max(duree_principal, duree_classement)
     h_fin_min = h_debut_min + duree_totale
@@ -416,21 +364,17 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
     elif h_fin_min > 22*60:
         alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee a {min_to_hm(h_fin_min)}'})
 
-    # 6. Format classement optimise
     if duree_classement >= 45 and duree_principal >= 45:
         alertes.append({'level':'warning', 'message': 'Pour gagner du temps : Format F conseille pour les matchs de classement (~20 min)'})
 
-    # 7. Paires impaires
     if len(paires) % 2 != 0:
         alertes.append({'level':'warning', 'message': f'Nombre de paires impair ({len(paires)})'})
 
-    # 8. Licences manquantes
     sans_lic = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
     if sans_lic:
         noms = ', '.join([p['nf'] for p in sans_lic[:3]])
         alertes.append({'level':'warning', 'message': f'Licence manquante : {noms}'})
 
-    # 9. Contraintes vs BYE/1er tour
     if contraintes and len(paires) >= 8:
         h_18_v1 = h_debut_min
         h_18_v2 = h_debut_min + duree_principal
@@ -459,7 +403,6 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
                 else:
                     alertes.append({'level':'info', 'message': f'{p["nf"]} - contrainte {heure_c} compatible'})
 
-    # 10. Infos
     alertes.append({'level':'info', 'message': f'Balles neuves : matchs 1,2,7,8,15,16,20 - prevoir {7*3} balles minimum'})
     alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
 
@@ -478,12 +421,12 @@ def generer():
     nb_pistes        = int(data.get('nbPistes', 2))
     duree_principal  = int(data.get('dureeMatchPrincipal', 45))
     duree_classement = int(data.get('dureeMatchClassement', 45))
-    nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Sénior')
+    nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Senior')
     date_str         = data.get('dateStr', '')
     sponsor          = data.get('sponsor', 'CUPRA LANESTER')
     format_jeu            = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
     format_jeu_classement = data.get('formatJeuClassement', format_jeu)
-    contraintes      = data.get('contraintes', {})  # {paire_id: 'HH:MM'}
+    contraintes      = data.get('contraintes', {})
 
     try:
         paires = parse_csv(csv_text)
@@ -491,15 +434,10 @@ def generer():
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
 
     if len(paires) < 4:
-        return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvées'}), 400
+        return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvees'}), 400
 
-    # Validation règlement FFT
     alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement)
-    
-    # Bloquer si erreurs critiques (sauf doublons qui sont dans les alertes)
-    erreurs_bloquantes = [a for a in alertes if a['level']=='error' and 'Doublon' not in a['message'] and 'Minimum 4' not in a['message']]
-    
-    # Vérif doublons
+
     lm, doublons = {}, []
     for p in paires:
         for l in [p['licJ1'], p['licJ2']]:
@@ -526,26 +464,26 @@ def generer():
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
     matchs = [
-        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b,  'terrain_str':'TERRAIN\nDÉCATHLON'},
-        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b,  'terrain_str':'TERRAIN\nCUPRA'},
-        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b,  'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b,  'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':5,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':6,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':11, 'ordre':'11 à 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':12, 'ordre':'9 à 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':13, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':14, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b},
+        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b},
+        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b},
+        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b},
+        {'num':5,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2'},
+        {'num':6,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4'},
+        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0},
+        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3},
+        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4},
+        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7},
+        {'num':11, 'ordre':'11 a 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6'},
+        {'num':12, 'ordre':'9 a 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6'},
+        {'num':13, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8'},
+        {'num':14, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10'},
+        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8'},
+        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10'},
+        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14'},
+        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14'},
+        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16'},
+        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
     ]
 
     for m in matchs:
@@ -553,7 +491,6 @@ def generer():
         m['heure'] = h_m
         m['piste'] = piste
 
-    # Messages WhatsApp
     paire_match = {}
     for num, (sa,sb) in {1:(2,3),2:(4,5),3:(10,11),4:(12,13)}.items():
         h_m, piste = horaires[num]
@@ -579,17 +516,17 @@ def generer():
 
         contrainte_info = ''
         if str(p['id']) in contraintes:
-            contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
+            contrainte_info = f"\n Disponible a partir de {contraintes[str(p['id'])]}h"
 
         for j in [{'pr':p['prenJ1'],'nm':p['nomJ1'],'tel':p['telJ1']},
                   {'pr':p['prenJ2'],'nm':p['nomJ2'],'tel':p['telJ2']}]:
-            msg = f"Bonjour {j['pr']} 👋\n\n📢 {nom_tournoi}\n📅 {date_str}\n🎯 Format : {format_jeu}\n━━━━━━━━━━━━━━\n👥 Votre paire :\n   {p['nf']}"
-            if p['ts']: msg += f"\n⭐ {p['ts']}"
-            if is_bye:  msg += "\n✅ Exempt du 1er tour (BYE)"
+            msg = f"Bonjour {j['pr']}\n\n {nom_tournoi}\n {date_str}\n Format : {format_jeu}\n\n Votre paire :\n   {p['nf']}"
+            if p['ts']: msg += f"\n {p['ts']}"
+            if is_bye:  msg += "\n Exempt du 1er tour (BYE)"
             if contrainte_info: msg += contrainte_info
-            msg += f"\n\n⏰ Convocation : {h_conv}h\n🏸 1er match — {tour} (M{num_m})\n   Heure : {h_m}h · Terrain {piste}"
-            if adv_str: msg += f"\n🆚 Adversaires : {adv_str}"
-            msg += "\n━━━━━━━━━━━━━━\nBonne chance ! 🏆\n— Organisation Arena18"
+            msg += f"\n\n Convocation : {h_conv}h\n 1er match - {tour} (M{num_m})\n   Heure : {h_m}h · Terrain {piste}"
+            if adv_str: msg += f"\n Adversaires : {adv_str}"
+            msg += "\n\nBonne chance !\n- Organisation Arena18"
 
             tel_c = j['tel'].replace(' ','').lstrip('0')
             tel_c = '33' + tel_c if tel_c and not tel_c.startswith('33') else tel_c
@@ -626,12 +563,18 @@ def pdf_tableau():
 
 @app.route('/pdf/feuille', methods=['POST'])
 def pdf_feuille():
-    data = request.get_json()
-    pdf_bytes = generer_pdf_feuille(
-        data['matchs'], data['nomTournoi'],
-        data['dateStr'], data['sponsor'], data['formatJeu'])
-    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
-        as_attachment=True, download_name='feuille_route.pdf')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Donnees JSON manquantes'}), 400
+        pdf_bytes = generer_pdf_feuille(
+            data['matchs'], data.get('nomTournoi',''),
+            data.get('dateStr',''), data.get('sponsor',''), data.get('formatJeu',''))
+        return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+            as_attachment=True, download_name='feuille_route.pdf')
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
 
 @app.route('/sms/envoyer', methods=['POST'])
 def envoyer_sms():
@@ -646,12 +589,12 @@ def envoyer_sms():
         from twilio.rest import Client
         client = Client(account_sid, auth_token)
     except ImportError:
-        return jsonify({'error': 'Module Twilio non installé'}), 500
+        return jsonify({'error': 'Module Twilio non installe'}), 500
     results = []
     for m in messages:
         tel = m.get('telClean','')
         if not tel or not tel.startswith('33'):
-            results.append({'tel':m.get('tel',''),'status':'skipped','reason':'N° invalide'})
+            results.append({'tel':m.get('tel',''),'status':'skipped','reason':'N invalide'})
             continue
         try:
             msg = client.messages.create(body=m['msg'], from_=from_number, to=f'+{tel}')
