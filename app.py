@@ -369,6 +369,102 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     return out.getvalue()
 
 
+# ── Validation règlement FFT ─────────────
+def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
+    alertes = []
+
+    # 1. Nombre de paires minimum
+    if len(paires) < 4:
+        alertes.append({'level':'error', 'message': f'Minimum 4 paires requises ({len(paires)} trouvees)'})
+
+    # 2. Doublons de licence
+    lm = {}
+    for p in paires:
+        for l in [p.get('licJ1',''), p.get('licJ2','')]:
+            if not l: continue
+            lu = l.lower()
+            if lu in lm:
+                alertes.append({'level':'error', 'message': f'Doublon de licence : {l}'})
+            else:
+                lm[lu] = True
+
+    # 3. Formats de jeu
+    formats_autorises = ['A1','A2','B1','B2','C1','C2','D1','D2','E','F']
+    fmt_upper = format_jeu.upper()
+    if not any(f in fmt_upper for f in formats_autorises):
+        alertes.append({'level':'error', 'message': f'Format principal non reconnu : {format_jeu}'})
+
+    if format_jeu_classement and format_jeu_classement != format_jeu:
+        fmt_cls = format_jeu_classement.upper()
+        if not any(f in fmt_cls for f in formats_autorises):
+            alertes.append({'level':'error', 'message': f'Format classement non reconnu : {format_jeu_classement}'})
+        else:
+            alertes.append({'level':'info', 'message': f'Formats differents : Principal={format_jeu[:25]} | Classement={format_jeu_classement[:25]}'})
+
+    # 4. Durées
+    if duree_principal < 30:
+        alertes.append({'level':'warning', 'message': f'Duree match principal courte ({duree_principal} min)'})
+    if duree_classement < 20:
+        alertes.append({'level':'warning', 'message': f'Duree match classement courte ({duree_classement} min)'})
+
+    # 5. Fin de tournoi tardive
+    h_debut_min = hm_to_min(heure_debut)
+    duree_totale = 11 * max(duree_principal, duree_classement)
+    h_fin_min = h_debut_min + duree_totale
+    if h_fin_min > 23*60:
+        alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee apres minuit ({min_to_hm(h_fin_min)})'})
+    elif h_fin_min > 22*60:
+        alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee a {min_to_hm(h_fin_min)}'})
+
+    # 6. Format classement optimise
+    if duree_classement >= 45 and duree_principal >= 45:
+        alertes.append({'level':'warning', 'message': 'Pour gagner du temps : Format F conseille pour les matchs de classement (~20 min)'})
+
+    # 7. Paires impaires
+    if len(paires) % 2 != 0:
+        alertes.append({'level':'warning', 'message': f'Nombre de paires impair ({len(paires)})'})
+
+    # 8. Licences manquantes
+    sans_lic = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
+    if sans_lic:
+        noms = ', '.join([p['nf'] for p in sans_lic[:3]])
+        alertes.append({'level':'warning', 'message': f'Licence manquante : {noms}'})
+
+    # 9. Contraintes vs BYE/1er tour
+    if contraintes and len(paires) >= 8:
+        h_18_v1 = h_debut_min
+        h_18_v2 = h_debut_min + duree_principal
+        h_qf_v1 = h_debut_min + duree_principal * 2 + duree_classement
+        h_qf_v2 = h_qf_v1 + duree_principal
+
+        for pid, heure_c in contraintes.items():
+            hc_min = hm_to_min(heure_c)
+            p = next((pp for pp in paires if str(pp['id'])==str(pid)), None)
+            if not p: continue
+            idx = next((i for i,pp in enumerate(paires) if pp['id']==p['id']), 99)
+            est_bye = idx < 4
+
+            if est_bye:
+                if hc_min > h_qf_v2:
+                    alertes.append({'level':'error', 'message': f'{p["nf"]} ({p["ts"]}) a un BYE mais disponible a {heure_c} apres la fin des QF. Impossible.'})
+                elif hc_min > h_qf_v1:
+                    alertes.append({'level':'warning', 'message': f'{p["nf"]} ({p["ts"]}) BYE - sera place en QF vague 2 ({min_to_hm(h_qf_v1+duree_principal)})'})
+                else:
+                    alertes.append({'level':'info', 'message': f'{p["nf"]} ({p["ts"]}) BYE - contrainte {heure_c} compatible avec les QF'})
+            else:
+                if hc_min > h_18_v2 + duree_principal:
+                    alertes.append({'level':'error', 'message': f'{p["nf"]} doit jouer un 1/8 mais disponible a {heure_c} apres la fin des 1/8.'})
+                elif hc_min > h_18_v1 + duree_principal // 2:
+                    alertes.append({'level':'warning', 'message': f'{p["nf"]} disponible a {heure_c} - sera place en 1/8 vague 2 ({min_to_hm(h_18_v2)})'})
+                else:
+                    alertes.append({'level':'info', 'message': f'{p["nf"]} - contrainte {heure_c} compatible'})
+
+    # 10. Infos
+    alertes.append({'level':'info', 'message': f'Balles neuves : matchs 1,2,7,8,15,16,20 - prevoir {7*3} balles minimum'})
+    alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
+
+    return alertes
+
 # ── Routes Flask ─────────────────────────
 @app.route('/')
 def index():
