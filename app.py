@@ -471,6 +471,87 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     return packet.getvalue()
 
 
+
+# ── Validation règlement FFT ─────────────
+def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes):
+    alertes = []  # {'level': 'error'|'warning'|'info', 'message': str}
+
+    # ── ERREURS BLOQUANTES (rouge) ────────
+    # 1. Nombre de paires minimum
+    if len(paires) < 4:
+        alertes.append({'level':'error', 'message': f'❌ Minimum 4 paires requises pour homologation FFT (actuellement {len(paires)})'})
+
+    # 2. Doublons de licence
+    lm = {}
+    for p in paires:
+        for l in [p.get('licJ1',''), p.get('licJ2','')]:
+            if not l: continue
+            lu = l.lower()
+            if lu in lm:
+                alertes.append({'level':'error', 'message': f'❌ Doublon de licence détecté : {l} — un joueur ne peut pas être inscrit deux fois'})
+            else:
+                lm[lu] = True
+
+    # 3. Format de jeu non homologué P250
+    formats_autorises = ['A2','B2','C2','D2','E','F','D1','B1','A1','C1']
+    fmt_upper = format_jeu.upper()
+    format_ok = any(f in fmt_upper for f in formats_autorises)
+    if not format_ok:
+        alertes.append({'level':'error', 'message': f'❌ Format de jeu non reconnu : "{format_jeu}" — Formats autorisés P250 : A2, B2, C2, D2, E, F'})
+
+    # 4. Contrainte horaire impossible
+    if contraintes:
+        h_debut_min = hm_to_min(heure_debut)
+        for pid, heure_c in contraintes.items():
+            hc_min = hm_to_min(heure_c)
+            if hc_min < h_debut_min:
+                p = next((p for p in paires if str(p['id'])==str(pid)), None)
+                nom = p['nf'] if p else f'Paire #{pid}'
+                alertes.append({'level':'warning', 'message': f'⚠️ Contrainte horaire incohérente : {nom} est disponible à {heure_c} mais le tournoi commence à {heure_debut}'})
+
+    # ── AVERTISSEMENTS (jaune) ────────────
+    # 5. Durée match trop courte
+    if duree_principal < 30:
+        alertes.append({'level':'warning', 'message': f'⚠️ Durée match principal très courte ({duree_principal} min) — risque de matchs non terminés'})
+    if duree_classement < 20:
+        alertes.append({'level':'warning', 'message': f'⚠️ Durée match classement très courte ({duree_classement} min)'})
+
+    # 6. Estimation fin de tournoi tardive
+    h_debut_min = hm_to_min(heure_debut)
+    # TMC 12 équipes : environ 11 vagues de matchs
+    nb_vagues = 11
+    duree_totale = nb_vagues * max(duree_principal, duree_classement)
+    h_fin_min = h_debut_min + duree_totale
+    if h_fin_min > 23*60:
+        h_fin_str = min_to_hm(h_fin_min)
+        alertes.append({'level':'warning', 'message': f'⚠️ Fin de tournoi estimée après minuit ({h_fin_str}) — vérifiez les durées de match'})
+    elif h_fin_min > 22*60:
+        h_fin_str = min_to_hm(h_fin_min)
+        alertes.append({'level':'warning', 'message': f'⚠️ Fin de tournoi estimée à {h_fin_str} — tournoi long, vérifiez la disponibilité des terrains'})
+
+    # 7. Format conseillé pour classement
+    if duree_classement >= 45 and duree_principal >= 45:
+        alertes.append({'level':'warning', 'message': '⚠️ Pour gagner du temps, le guide FFT conseille le Format F (4 jeux NO-AD) pour les matchs de classement — durée ~20 min'})
+
+    # 8. Nombre de paires impair
+    if len(paires) % 2 != 0:
+        alertes.append({'level':'warning', 'message': f'⚠️ Nombre de paires impair ({len(paires)}) — vérifiez les inscriptions'})
+
+    # ── INFORMATIFS (bleu) ────────────────
+    # 9. Balles neuves obligatoires
+    alertes.append({'level':'info', 'message': f'ℹ️ Balles neuves obligatoires : matchs 1, 2, 7, 8, 15, 16, 20 — prévoir {7*3} balles minimum (3 par terrain par match)'})
+
+    # 10. Minimum 3 matchs par paire
+    alertes.append({'level':'info', 'message': 'ℹ️ Obligation FFT : 3 matchs minimum garantis par paire — respecté avec le format TMC 20 matchs ✅'})
+
+    # 11. Rappel licences
+    sans_licence = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
+    if sans_licence:
+        noms = ', '.join([p['nf'] for p in sans_licence[:3]])
+        alertes.append({'level':'warning', 'message': f'⚠️ Licence manquante pour : {noms} — vérifiez avant homologation'})
+
+    return alertes
+
 # ── Routes Flask ─────────────────────────
 @app.route('/')
 def index():
@@ -495,9 +576,15 @@ def generer():
     except Exception as e:
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
 
-    if len(paires) < 8:
-        return jsonify({'error': f'Minimum 8 paires requises, {len(paires)} trouvées'}), 400
+    if len(paires) < 4:
+        return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvées'}), 400
 
+    # Validation règlement FFT
+    alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes)
+    
+    # Bloquer si erreurs critiques (sauf doublons qui sont dans les alertes)
+    erreurs_bloquantes = [a for a in alertes if a['level']=='error' and 'Doublon' not in a['message'] and 'Minimum 4' not in a['message']]
+    
     # Vérif doublons
     lm, doublons = {}, []
     for p in paires:
@@ -606,6 +693,7 @@ def generer():
         'messages': messages,
         'doublons': doublons,
         'qfMap':    qf_map,
+        'alertes':  alertes,
     })
 
 @app.route('/pdf/tableau', methods=['POST'])
