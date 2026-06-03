@@ -18,8 +18,17 @@ with open(PDF_B64_PATH) as f:
     PDF_VIERGE_B64 = f.read().strip()
 
 FDR_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'feuille_route_b64.txt')
-with open(FDR_B64_PATH) as f:
-    FDR_VIERGE_B64 = f.read().strip()
+FDR_VIERGE_B64 = None  # Chargé à la demande
+
+def get_fdr_b64():
+    global FDR_VIERGE_B64
+    if FDR_VIERGE_B64 is None:
+        try:
+            with open(FDR_B64_PATH) as f:
+                FDR_VIERGE_B64 = f.read().strip()
+        except FileNotFoundError:
+            return None
+    return FDR_VIERGE_B64
 
 W_PDF, H_PDF = 595.2, 841.8
 Y_1T = [735.4,694.8,654.3,613.7,573.2,532.6,492.0,451.4,
@@ -345,7 +354,10 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     c.save()
     packet.seek(0)
 
-    template_bytes = base64.b64decode(FDR_VIERGE_B64)
+    fdr_b64 = get_fdr_b64()
+    if not fdr_b64:
+        raise FileNotFoundError("Modele feuille de route non trouve")
+    template_bytes = base64.b64decode(fdr_b64)
     reader  = PdfReader(io.BytesIO(template_bytes))
     overlay = PdfReader(packet)
     writer  = PdfWriter()
