@@ -112,7 +112,54 @@ tr:hover td{background:var(--dk3);}
       <div class="fi"><label>Durée match principal (min)</label><input type="number" id="dp" value="45" min="15"/></div>
       <div class="fi"><label>Durée match classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
     </div>
-    <div class="fi"><label>Format de jeu</label><input id="fg" value="D2 : 1 set 9 jeux, NO-AD"/></div>
+    <div class="fi"><label>Format de jeu — Tableau principal</label>
+      <select id="fg" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;outline:none;">
+        <optgroup label="── Format D (1 set) ──">
+          <option value="D2 : 1 set 9 jeux, NO-AD, jeu décisif à 7pts à 8/8" selected>D2 — 1 set 9 jeux, NO-AD ⭐ Recommandé P250</option>
+          <option value="D1 : 1 set 9 jeux, avec avantage, jeu décisif à 8/8">D1 — 1 set 9 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format B (2 sets) ──">
+          <option value="B2 : 2 sets 6 jeux, NO-AD, super jeu décisif 10 pts">B2 — 2 sets 6 jeux, NO-AD</option>
+          <option value="B1 : 2 sets 6 jeux, avec avantage, super jeu décisif 10 pts">B1 — 2 sets 6 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format A (3 sets) ──">
+          <option value="A2 : 3 sets 6 jeux, NO-AD, jeu décisif à 6/6">A2 — 3 sets 6 jeux, NO-AD</option>
+          <option value="A1 : 3 sets 6 jeux, avec avantage, jeu décisif à 6/6">A1 — 3 sets 6 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format C (2 sets courts) ──">
+          <option value="C2 : 2 sets 4 jeux, NO-AD, jeu décisif à 4/4">C2 — 2 sets 4 jeux, NO-AD</option>
+          <option value="C1 : 2 sets 4 jeux, avec avantage, jeu décisif à 4/4">C1 — 2 sets 4 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Formats courts ──">
+          <option value="F : 1 set 4 jeux, NO-AD, jeu décisif à 3/3 ⚡ Rapide">F — 1 set 4 jeux, NO-AD ⚡ Plus rapide</option>
+          <option value="E : Super jeu décisif 10 points">E — Super jeu décisif 10 pts</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="fi"><label>Format de jeu — Matchs de classement</label>
+      <select id="fg-cls" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;outline:none;">
+        <optgroup label="── Format D (1 set) ──">
+          <option value="D2 : 1 set 9 jeux, NO-AD, jeu décisif à 7pts à 8/8">D2 — 1 set 9 jeux, NO-AD</option>
+          <option value="D1 : 1 set 9 jeux, avec avantage, jeu décisif à 8/8">D1 — 1 set 9 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format B (2 sets) ──">
+          <option value="B2 : 2 sets 6 jeux, NO-AD, super jeu décisif 10 pts">B2 — 2 sets 6 jeux, NO-AD</option>
+          <option value="B1 : 2 sets 6 jeux, avec avantage, super jeu décisif 10 pts">B1 — 2 sets 6 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format A (3 sets) ──">
+          <option value="A2 : 3 sets 6 jeux, NO-AD, jeu décisif à 6/6">A2 — 3 sets 6 jeux, NO-AD</option>
+          <option value="A1 : 3 sets 6 jeux, avec avantage, jeu décisif à 6/6">A1 — 3 sets 6 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Format C (2 sets courts) ──">
+          <option value="C2 : 2 sets 4 jeux, NO-AD, jeu décisif à 4/4">C2 — 2 sets 4 jeux, NO-AD</option>
+          <option value="C1 : 2 sets 4 jeux, avec avantage, jeu décisif à 4/4">C1 — 2 sets 4 jeux, avec avantage</option>
+        </optgroup>
+        <optgroup label="── Formats courts ──">
+          <option value="F : 1 set 4 jeux, NO-AD, jeu décisif à 3/3" selected>F — 1 set 4 jeux, NO-AD ⚡ Recommandé classement</option>
+          <option value="E : Super jeu décisif 10 points">E — Super jeu décisif 10 pts</option>
+        </optgroup>
+      </select>
+    </div>
 
     <div class="div"></div>
     <div class="stl">📂 CSV FFT</div>
@@ -305,6 +352,7 @@ async function generer(){
         dureeMatchPrincipal:parseInt(document.getElementById('dp').value),
         dureeMatchClassement:parseInt(document.getElementById('dc').value),
         formatJeu:document.getElementById('fg').value,
+        formatJeuClassement:document.getElementById('fg-cls').value,
         contraintes,
       })
     });
@@ -343,7 +391,8 @@ async function dlPdf(type){
         nomTournoi:document.getElementById('nt').value,
         dateStr,
         sponsor:document.getElementById('sp').value,
-        formatJeu:document.getElementById('fg').value};
+        formatJeu:document.getElementById('fg').value,
+        formatJeuClassement:document.getElementById('fg-cls').value};
     const r=await fetch(`/pdf/${type}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok)throw new Error('Erreur '+r.status);
     const blob=await r.blob();
