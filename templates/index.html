@@ -103,6 +103,17 @@ tr:hover td{background:var(--dk3);}
 <div class="wrap">
   <div class="side">
     <div class="stl">⚙ Tournoi</div>
+    <div class="fi"><label>Niveau du tournoi</label>
+      <select id="niveau" onchange="onNiveauChange()" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;outline:none;transition:border-color .2s;">
+        <option value="P25">P25</option>
+        <option value="P100">P100</option>
+        <option value="P250" selected>P250 ⭐</option>
+        <option value="P500">P500</option>
+        <option value="P1000">P1000</option>
+        <option value="P1500">P1500</option>
+        <option value="P2000">P2000</option>
+      </select>
+    </div>
     <div class="fi"><label>Nom</label><input id="nt" value="P250 Double Messieurs Sénior"/></div>
     <div class="fi"><label>Sponsor</label><input id="sp" value="CUPRA LANESTER"/></div>
     <div class="fi"><label>Date</label><input type="date" id="dt"/></div>
@@ -561,7 +572,153 @@ function raz(){
   document.getElementById('sb').textContent='En attente du CSV FFT';
 }
 
+// ── FORMATS PAR NIVEAU ───────────────
+const FORMATS_NIVEAUX = {
+  P25: {
+    principal: [
+      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⚡ Conseillé'},
+      {val:'D1 : 1 set 9 jeux, avec avantage, jeu decisif a 8/8', label:'D1 — 1 set 9 jeux, avec avantage'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD, jeu decisif a 4/4', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'C1 : 2 sets 4 jeux, avec avantage', label:'C1 — 2 sets 4 jeux, avec avantage'},
+      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡'},
+      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
+    ],
+    classement: [
+      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡ Conseillé'},
+      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
+      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+    ],
+    note: 'P25 — Formats E ou F conseillés'
+  },
+  P100: {
+    principal: [
+      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⚡ Conseillé'},
+      {val:'D1 : 1 set 9 jeux, avec avantage', label:'D1 — 1 set 9 jeux, avec avantage'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'C1 : 2 sets 4 jeux, avec avantage', label:'C1 — 2 sets 4 jeux, avec avantage'},
+      {val:'F : 1 set 4 jeux, NO-AD', label:'F — 1 set 4 jeux, NO-AD ⚡'},
+      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
+    ],
+    classement: [
+      {val:'F : 1 set 4 jeux, NO-AD', label:'F — 1 set 4 jeux, NO-AD ⚡ Conseillé'},
+      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
+      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+    ],
+    note: 'P100 — Formats E ou F conseillés'
+  },
+  P250: {
+    principal: [
+      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⭐ Recommandé'},
+      {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts', label:'B2 — 2 sets 6 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+    ],
+    classement: [
+      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡ Recommandé classement'},
+      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+    ],
+    note: 'P250 — Formats A2/B2/C2/D2 uniquement (pas E ni F pour le tableau)'
+  },
+  P500: {
+    principal: [
+      {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts', label:'B2 — 2 sets 6 jeux, NO-AD ⭐ Recommandé'},
+      {val:'B1 : 2 sets 6 jeux, avec avantage', label:'B1 — 2 sets 6 jeux, avec avantage'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD (Finale obligatoire)', label:'A2 — 3 sets 6 jeux, NO-AD'},
+      {val:'A1 : 3 sets 6 jeux, avec avantage (Finale)', label:'A1 — 3 sets 6 jeux, avec avantage'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
+    ],
+    classement: [
+      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+    ],
+    note: 'P500 — Finale obligatoire en A1/A2/B1/B2. Pas de format E ni F.'
+  },
+  P1000: {
+    principal: [
+      {val:'A2 : 3 sets 6 jeux, NO-AD (oblig. a partir 1/8)', label:'A2 — 3 sets 6 jeux, NO-AD ⭐ Obligatoire ≥1/8'},
+      {val:'A1 : 3 sets 6 jeux, avec avantage', label:'A1 — 3 sets 6 jeux, avec avantage'},
+      {val:'B2 : 2 sets 6 jeux, NO-AD (qualifs et ≤1/16)', label:'B2 — 2 sets 6 jeux, NO-AD (qualifs/1/16)'},
+      {val:'B1 : 2 sets 6 jeux, avec avantage (qualifs)', label:'B1 — 2 sets 6 jeux, avec avantage (qualifs)'},
+    ],
+    classement: [
+      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+    ],
+    note: 'P1000 — A1 ou A2 obligatoire à partir des 1/8 de finale. Pas de format E ni F.'
+  },
+  P1500: {
+    principal: [
+      {val:'A1 : 3 sets 6 jeux, avec avantage (oblig. a partir 1/8)', label:'A1 — 3 sets 6 jeux, avec avantage ⭐ Obligatoire ≥1/8'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+      {val:'B1 : 2 sets 6 jeux, avec avantage (1/16 et qualifs)', label:'B1 — 2 sets 6 jeux, avec avantage (qualifs)'},
+    ],
+    classement: [
+      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
+      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
+      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
+    ],
+    note: 'P1500 — A1 obligatoire à partir des 1/8. Qualifs en B1.'
+  },
+  P2000: {
+    principal: [
+      {val:'A1 : 3 sets 6 jeux, avec avantage', label:'A1 — 3 sets 6 jeux, avec avantage ⭐ Obligatoire'},
+    ],
+    classement: [
+      {val:'B1 : 2 sets 6 jeux, avec avantage', label:'B1 — 2 sets 6 jeux, avec avantage ⭐ Obligatoire'},
+    ],
+    note: 'P2000 — Format A1 obligatoire tableau, B1 obligatoire classement.'
+  },
+};
+
+function onNiveauChange(){
+  const niveau = document.getElementById('niveau').value;
+  const fmts = FORMATS_NIVEAUX[niveau];
+  if(!fmts) return;
+
+  // Mettre à jour le nom
+  const nt = document.getElementById('nt');
+  if(nt.value.startsWith('P')){
+    nt.value = niveau + ' Double Messieurs Senior';
+  }
+
+  // Mettre à jour format principal
+  const fg = document.getElementById('fg');
+  fg.innerHTML = fmts.principal.map((f,i)=>
+    `<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`
+  ).join('');
+
+  // Mettre à jour format classement
+  const fgc = document.getElementById('fg-cls');
+  fgc.innerHTML = fmts.classement.map((f,i)=>
+    `<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`
+  ).join('');
+
+  // Afficher une note
+  if(fmts.note){
+    let noteEl = document.getElementById('niveau-note');
+    if(!noteEl){
+      noteEl = document.createElement('div');
+      noteEl.id = 'niveau-note';
+      noteEl.style = 'font-size:10px;color:var(--am);font-family:var(--mo);margin-top:4px;padding:6px 10px;background:var(--dk3);border-radius:6px;border-left:3px solid var(--am);';
+      document.getElementById('niveau').parentElement.appendChild(noteEl);
+    }
+    noteEl.textContent = '⚠️ ' + fmts.note;
+  }
+}
+
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
+// Initialiser avec P250
+onNiveauChange();
 
 // ── THEME ─────────────────────────────
 function toggleTheme(){
