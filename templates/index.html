@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -14,27 +13,35 @@ body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh
 .badge{background:var(--or);color:#fff;font-family:var(--mo);font-size:10px;padding:4px 10px;border-radius:3px;letter-spacing:.08em;}
 .hdr h1{font-size:15px;font-weight:700;}
 #sb{font-size:11px;color:var(--tx2);margin-left:auto;font-family:var(--mo);}
-.wrap{display:grid;grid-template-columns:310px 1fr;min-height:calc(100vh - 51px);}
+.wrap{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 51px);}
 .side{background:var(--dk2);border-right:1px solid var(--bd);padding:18px;overflow-y:auto;}
 .stl{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--or);margin-bottom:9px;font-family:var(--mo);}
-.fi{margin-bottom:11px;}
+.fi{margin-bottom:10px;}
 .fi label{display:block;font-size:11px;color:var(--tx2);margin-bottom:4px;font-family:var(--mo);}
-.fi input{width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:8px 11px;border-radius:6px;font-family:var(--mo);font-size:12px;outline:none;transition:border-color .2s;}
-.fi input:focus{border-color:var(--or);}
-.div{height:1px;background:var(--bd);margin:13px 0;}
-.dz{border:2px dashed var(--bd);border-radius:10px;padding:22px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:6px;}
+.fi input,.fi select{width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;outline:none;transition:border-color .2s;}
+.fi input:focus,.fi select:focus{border-color:var(--or);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.div{height:1px;background:var(--bd);margin:12px 0;}
+.dz{border:2px dashed var(--bd);border-radius:10px;padding:20px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:6px;}
 .dz:hover,.dz.over{border-color:var(--or);background:#1f1208;}
 .dz.ok{border-color:var(--gr);border-style:solid;background:#0d1f12;}
 .dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.dz-icon{font-size:26px;margin-bottom:5px;}
-.dz-title{font-size:12px;font-weight:700;margin-bottom:3px;}
+.dz-icon{font-size:24px;margin-bottom:4px;}
+.dz-title{font-size:12px;font-weight:700;margin-bottom:2px;}
 .dz-sub{font-size:10px;color:var(--tx2);font-family:var(--mo);line-height:1.4;}
-.dz-ok{font-size:11px;color:var(--gr);font-family:var(--mo);margin-top:5px;display:none;}
-.btn{width:100%;background:var(--or);color:#fff;border:none;padding:11px;border-radius:8px;font-family:var(--sa);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px;}
+.dz-ok{font-size:11px;color:var(--gr);font-family:var(--mo);margin-top:4px;display:none;}
+.btn{width:100%;background:var(--or);color:#fff;border:none;padding:10px;border-radius:8px;font-family:var(--sa);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px;}
 .btn:hover{background:var(--orl);}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
-.btn2{background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);margin-top:6px;font-weight:600;}
+.btn2{background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);margin-top:5px;font-weight:600;}
 .btn2:hover{background:var(--bd);color:var(--tx);}
+/* Contraintes */
+.contraintes-box{margin-top:8px;}
+.contrainte-row{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;margin-bottom:6px;}
+.contrainte-row select,.contrainte-row input[type=time]{padding:6px 8px;font-size:11px;}
+.btn-add{background:var(--dk3);border:1px solid var(--bd);color:var(--gr);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--mo);white-space:nowrap;}
+.btn-del{background:none;border:none;color:var(--am);cursor:pointer;font-size:14px;padding:0 4px;}
+/* Main */
 .main{padding:18px;overflow-y:auto;}
 .tabs{display:flex;gap:3px;margin-bottom:16px;background:var(--dk2);padding:4px;border-radius:8px;width:fit-content;}
 .tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--tx2);border:none;background:none;font-family:var(--mo);transition:all .2s;}
@@ -55,6 +62,7 @@ tr:hover td{background:var(--dk3);}
 .sl-n{flex:1;}
 .srow{background:var(--dk2);border:1px solid var(--bd);border-radius:7px;padding:8px 12px;display:grid;grid-template-columns:52px 26px 1fr auto 55px;gap:7px;align-items:center;margin-bottom:4px;}
 .srow.fin{border-color:var(--or);background:#1f0f00;}
+.srow.cls{border-color:#3a2800;}
 .st{font-family:var(--mo);font-size:13px;font-weight:700;color:var(--or);}
 .mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:9px;}
 .mc{background:var(--dk2);border:1px solid var(--bd);border-radius:10px;padding:13px;}
@@ -67,14 +75,15 @@ tr:hover td{background:var(--dk3);}
 .bc{background:var(--dk3);color:var(--tx);border:1px solid var(--bd);}
 .bw{background:#25D366;color:#fff;}
 .bd2{opacity:.3;cursor:not-allowed;background:var(--dk3);color:var(--tx2);border:1px solid var(--bd);}
-.twilio-box{background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-top:8px;}
-.sms-result{margin-top:10px;font-size:11px;font-family:var(--mo);padding:10px;border-radius:6px;background:var(--dk2);border:1px solid var(--bd);}
+.tw-box{background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-top:7px;}
+.sms-res{margin-top:8px;font-size:11px;font-family:var(--mo);padding:9px;border-radius:6px;background:var(--dk2);border:1px solid var(--bd);}
+.contrainte-badge{display:inline-block;font-size:9px;background:#3a2000;color:var(--am);padding:1px 5px;border-radius:3px;font-family:var(--mo);margin-left:4px;}
 </style>
 </head>
 <body>
 <div class="hdr">
-  <div class="badge">JAP Tool</div>
-  <h1>Tournoi Padel FFT — jap.myconvi.fr</h1>
+  <div class="badge">JAP Tool v2</div>
+  <h1>Tournoi Padel FFT — Arena18</h1>
   <span id="sb">En attente du CSV FFT</span>
 </div>
 <div class="wrap">
@@ -85,8 +94,12 @@ tr:hover td{background:var(--dk3);}
     <div class="fi"><label>Date</label><input type="date" id="dt"/></div>
     <div class="fi"><label>Heure de début</label><input type="time" id="hd" value="09:00"/></div>
     <div class="fi"><label>Nb de pistes</label><input type="number" id="np" value="2" min="1" max="10"/></div>
-    <div class="fi"><label>Durée match (min)</label><input type="number" id="dm" value="45" min="15"/></div>
+    <div class="row2">
+      <div class="fi"><label>Durée match principal (min)</label><input type="number" id="dp" value="45" min="15"/></div>
+      <div class="fi"><label>Durée match classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
+    </div>
     <div class="fi"><label>Format de jeu</label><input id="fg" value="D2 : 1 set 9 jeux, NO-AD"/></div>
+
     <div class="div"></div>
     <div class="stl">📂 CSV FFT</div>
     <div class="dz" id="dz">
@@ -96,20 +109,29 @@ tr:hover td{background:var(--dk3);}
       <div class="dz-sub">Export direct depuis le site FFT</div>
       <div class="dz-ok" id="dz-ok"></div>
     </div>
+
+    <div class="div"></div>
+    <div class="stl">⏰ Contraintes horaires
+      <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
+    </div>
+    <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Si une paire ne peut pas jouer avant une certaine heure</div>
+    <div id="contraintes-list"></div>
+
     <div class="div"></div>
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
-    <div class="twilio-box" id="twilio-box" style="display:none">
+    <div class="tw-box" id="tw-box" style="display:none">
       <div class="stl">📱 Envoi SMS Twilio</div>
-      <div class="fi"><label>Account SID</label><input id="tw-sid" placeholder="ACxxxxxxxx" type="password"/></div>
-      <div class="fi"><label>Auth Token</label><input id="tw-tok" placeholder="xxxxxxxx" type="password"/></div>
+      <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx"/></div>
+      <div class="fi"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx"/></div>
       <div class="fi"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx"/></div>
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
-      <div class="sms-result" id="sms-result" style="display:none"></div>
+      <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
-    <button class="btn btn2" onclick="raz()">↺ Réinitialiser</button>
+    <button class="btn btn2" onclick="raz()" style="margin-top:8px;">↺ Réinitialiser</button>
   </div>
+
   <div class="main">
     <div class="tabs">
       <button class="tab on" onclick="st('tt')">Tableau</button>
@@ -121,19 +143,23 @@ tr:hover td{background:var(--dk3);}
     <div id="tm" style="display:none"><div class="empty"><div class="empty-i">💬</div>Les messages apparaîtront ici</div></div>
   </div>
 </div>
+
 <script>
-let csvText='', genData=null;
+let csvText='', genData=null, pairesLoaded=[];
 
 function st(n){
   ['tt','th','tm'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm'][i]===n));
 }
 
+// ── CSV ───────────────────────────────
 function loadFile(file){
   if(!file)return;
   const r=new FileReader();
   r.onload=e=>{
     csvText=e.target.result.replace(/^\uFEFF/,'');
+    // Parser pour avoir les paires disponibles pour les contraintes
+    parsePairesPreview(csvText);
     document.getElementById('dz-ok').textContent='✓ Fichier chargé — prêt à générer';
     document.getElementById('dz-ok').style.display='block';
     document.getElementById('dz').classList.add('ok');
@@ -143,28 +169,94 @@ function loadFile(file){
   r.readAsText(file,'utf-8');
 }
 
+function parsePairesPreview(text){
+  text=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  let start=0;
+  if(lines[0].toLowerCase().includes('epreuve')||lines[0].toLowerCase().includes('nom j1'))start=1;
+  pairesLoaded=[];
+  for(let i=start;i<lines.length;i++){
+    const c=lines[i].split(';');
+    if(c.length<20)continue;
+    const poids=parseInt(c[19].trim());
+    if(isNaN(poids))continue;
+    pairesLoaded.push({
+      id: pairesLoaded.length+1,
+      nom: `${c[4].trim()} ${c[3].trim()} / ${c[12].trim()} ${c[11].trim()}`,
+      poids
+    });
+  }
+  pairesLoaded.sort((a,b)=>a.poids-b.poids);
+  pairesLoaded.forEach((p,i)=>p.id=i+1);
+  // Mettre à jour les selects existants
+  document.querySelectorAll('.contrainte-select').forEach(updateSelect);
+}
+
+function updateSelect(sel){
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- Choisir une paire --</option>';
+  pairesLoaded.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.id; o.textContent=`${p.nom} (${p.poids})`;
+    if(p.id==cur)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+// ── CONTRAINTES ───────────────────────
+function ajouterContrainte(){
+  const list=document.getElementById('contraintes-list');
+  const div=document.createElement('div');
+  div.className='contrainte-row';
+  div.innerHTML=`
+    <select class="contrainte-select fi" onchange="">
+      <option value="">-- Choisir une paire --</option>
+      ${pairesLoaded.map(p=>`<option value="${p.id}">${p.nom} (${p.poids})</option>`).join('')}
+    </select>
+    <input type="time" class="contrainte-heure" value="10:00" style="width:90px;"/>
+    <button class="btn-del" onclick="this.parentElement.remove()">✕</button>
+  `;
+  list.appendChild(div);
+}
+
+function getContraintes(){
+  const result={};
+  document.querySelectorAll('.contrainte-row').forEach(row=>{
+    const sel=row.querySelector('.contrainte-select');
+    const heure=row.querySelector('.contrainte-heure');
+    if(sel.value&&heure.value){
+      result[sel.value]=heure.value;
+    }
+  });
+  return result;
+}
+
 const dz=document.getElementById('dz');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f){document.getElementById('fi-csv').files=e.dataTransfer.files;loadFile(f);}});
 
+// ── GÉNÉRATION ────────────────────────
 async function generer(){
   if(!csvText){alert('Charge le CSV d\'abord !');return;}
   const btn=document.getElementById('bg');
   btn.disabled=true; btn.textContent='⏳ Génération...';
+  const contraintes=getContraintes();
   try {
-    const r=await fetch('/generer',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+    const dt=document.getElementById('dt').value;
+    const dateStr=dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
+    const r=await fetch('/generer',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         csv:csvText,
         nomTournoi:document.getElementById('nt').value,
         sponsor:document.getElementById('sp').value,
-        dateStr:(()=>{const d=document.getElementById('dt').value;return d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';})(),
+        dateStr,
         heureDebut:document.getElementById('hd').value,
         nbPistes:parseInt(document.getElementById('np').value),
-        dureeMatch:parseInt(document.getElementById('dm').value),
+        dureeMatchPrincipal:parseInt(document.getElementById('dp').value),
+        dureeMatchClassement:parseInt(document.getElementById('dc').value),
         formatJeu:document.getElementById('fg').value,
+        contraintes,
       })
     });
     const data=await r.json();
@@ -173,23 +265,38 @@ async function generer(){
     renTab(data); renH(data); renMsg(data);
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
-    document.getElementById('twilio-box').style.display='block';
-    document.getElementById('sb').textContent=data.paires.length+' paires · TMC 20 matchs · '+new Date().toLocaleTimeString('fr-FR');
+    document.getElementById('tw-box').style.display='block';
+    document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.doublons?.length) alert('⚠️ Doublons de licence : '+data.doublons.join(', '));
+    // Afficher les contraintes actives
+    if(Object.keys(contraintes).length){
+      const nb=Object.keys(contraintes).length;
+      document.getElementById('sb').textContent+=` · ${nb} contrainte(s) appliquée(s)`;
+    }
   } catch(e){ alert('Erreur : '+e.message); }
   finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
 }
 
+// ── PDF ───────────────────────────────
 async function dlPdf(type){
   if(!genData)return;
   const btn=document.getElementById(type==='tableau'?'b-tab':'b-fdr');
-  const orig=btn.textContent; btn.disabled=true; btn.textContent='⏳ PDF en cours...';
+  const orig=btn.textContent; btn.disabled=true; btn.textContent='⏳ PDF...';
   try {
+    const dt=document.getElementById('dt').value;
+    const dateStr=dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
     const payload=type==='tableau'
-      ? {tableau:genData.tableau,qfMap:genData.qfMap,nomTournoi:document.getElementById('nt').value,dateStr:(()=>{const d=document.getElementById('dt').value;return d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):'';})(),formatJeu:document.getElementById('fg').value}
-      : {matchs:genData.matchs,nomTournoi:document.getElementById('nt').value,dateStr:(()=>{const d=document.getElementById('dt').value;return d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';})(),sponsor:document.getElementById('sp').value,formatJeu:document.getElementById('fg').value};
+      ?{tableau:genData.tableau,qfMap:genData.qfMap,
+        nomTournoi:document.getElementById('nt').value,
+        dateStr:dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR'):'',
+        formatJeu:document.getElementById('fg').value}
+      :{matchs:genData.matchs,
+        nomTournoi:document.getElementById('nt').value,
+        dateStr,
+        sponsor:document.getElementById('sp').value,
+        formatJeu:document.getElementById('fg').value};
     const r=await fetch(`/pdf/${type}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    if(!r.ok) throw new Error('Erreur '+r.status);
+    if(!r.ok)throw new Error('Erreur '+r.status);
     const blob=await r.blob();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -199,42 +306,46 @@ async function dlPdf(type){
   finally { btn.disabled=false; btn.textContent=orig; }
 }
 
+// ── SMS ───────────────────────────────
 async function envoyerSMS(){
   if(!genData?.messages)return;
   const sid=document.getElementById('tw-sid').value;
   const tok=document.getElementById('tw-tok').value;
   const num=document.getElementById('tw-num').value;
   if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio !');return;}
-  const btn=event.target; btn.disabled=true; btn.textContent='📤 Envoi en cours...';
+  const btn=event.target; btn.disabled=true; btn.textContent='📤 Envoi...';
   try {
     const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({messages:genData.messages,twilioSid:sid,twilioToken:tok,twilioFrom:num})});
     const data=await r.json();
-    const el=document.getElementById('sms-result');
+    const el=document.getElementById('sms-res');
     el.style.display='block';
-    if(data.error){ el.innerHTML=`<span style="color:var(--am)">❌ ${data.error}</span>`; return; }
+    if(data.error){el.innerHTML=`<span style="color:var(--am)">❌ ${data.error}</span>`;return;}
     el.innerHTML=`<span style="color:var(--gr)">✅ ${data.sent}/${data.total} SMS envoyés</span><br>`
       +data.results.map(r=>`<span style="color:${r.status==='sent'?'var(--gr)':r.status==='skipped'?'var(--am)':'var(--or)'}">${r.status==='sent'?'✓':'✗'} ${r.tel}</span>`).join('<br>');
   } catch(e){ alert('Erreur SMS : '+e.message); }
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
 }
 
+// ── RENDER TABLEAU ────────────────────
 function renTab(d){
   const tc=ts=>ts?(parseInt(ts.replace('TS',''))<=2?'a':parseInt(ts.replace('TS',''))<=4?'b':'c'):'';
   let h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">';
   h+='<div><div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);font-family:var(--mo);margin-bottom:7px;">Moitié haute — TS2</div>';
-  for(let i=0;i<8;i++) h+=slH(d.tableau[i]);
+  for(let i=0;i<8;i++)h+=slH(d.tableau[i]);
   h+='</div><div><div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);font-family:var(--mo);margin-bottom:7px;">Moitié basse — TS1</div>';
-  for(let i=8;i<16;i++) h+=slH(d.tableau[i]);
+  for(let i=8;i<16;i++)h+=slH(d.tableau[i]);
   h+='</div></div>';
   h+='<div style="height:1px;background:var(--bd);margin:14px 0;"></div>';
   h+='<div class="stl">Classement des paires</div>';
-  h+='<div class="tw"><table><tr><th>#</th><th>Paire</th><th>Licence J1</th><th>Licence J2</th><th>Poids</th><th>TS</th><th>Statut</th></tr>';
+  h+='<div class="tw"><table><tr><th>#</th><th>Paire</th><th>Lic J1</th><th>Lic J2</th><th>Poids</th><th>TS</th><th>Statut</th><th>Contrainte</th></tr>';
+  const contraintes=getContraintes();
   d.paires.forEach((p,i)=>{
-    const c=i<2?'a':i<4?'b':'c';
-    const ts=p.ts?`<span class="ts ${c}">${p.ts}</span>`:'—';
-    const st=i<4?`<span style="color:var(--gr);font-size:10px;">BYE → QF</span>`:`<span style="color:var(--tx2);font-size:10px;">1/8</span>`;
-    h+=`<tr><td style="font-family:var(--mo);color:var(--tx2);">${i+1}</td><td style="font-weight:600;">${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ1}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ2}</td><td style="font-family:var(--mo);color:var(--or);">${p.poids}</td><td>${ts}</td><td>${st}</td></tr>`;
+    const cc=i<2?'a':i<4?'b':'c';
+    const ts=p.ts?`<span class="ts ${cc}">${p.ts}</span>`:'—';
+    const st=i<4?`<span style="color:var(--gr);font-size:10px;">BYE→QF</span>`:`<span style="color:var(--tx2);font-size:10px;">1/8</span>`;
+    const cstr=contraintes[String(p.id)]?`<span class="contrainte-badge">⏰ dès ${contraintes[String(p.id)]}</span>`:'—';
+    h+=`<tr><td style="font-family:var(--mo);color:var(--tx2);">${i+1}</td><td style="font-weight:600;">${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ1}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ2}</td><td style="font-family:var(--mo);color:var(--or);">${p.poids}</td><td>${ts}</td><td>${st}</td><td>${cstr}</td></tr>`;
   });
   h+='</table></div>';
   document.getElementById('tt').innerHTML=h;
@@ -242,28 +353,35 @@ function renTab(d){
 
 function slH(s){
   const[t,p]=s;
-  if(t==='emp') return'<div class="sl emp"></div>';
+  if(t==='emp')return'<div class="sl emp"></div>';
   const isBye=t==='bye';
-  const tc={TS1:'a',TS2:'a',TS3:'b',TS4:'b',TS5:'c',TS6:'c',TS7:'c',TS8:'c'};
+  const tc2={TS1:'a',TS2:'a',TS3:'b',TS4:'b',TS5:'c',TS6:'c',TS7:'c',TS8:'c'};
   const cls=isBye?'sl bye':(p?.ts?'sl sts':'sl');
-  const badge=p?.ts?`<span class="ts ${tc[p.ts]||'c'}">${p.ts}</span>`:'';
+  const badge=p?.ts?`<span class="ts ${tc2[p.ts]||'c'}">${p.ts}</span>`:'';
   const extra=isBye?`<span style="font-size:9px;color:var(--gr);">BYE→QF</span>`:'';
   return`<div class="${cls}">${badge}<span class="sl-n">${p?.prenJ1||''} ${p?.nomJ1||''} / ${p?.prenJ2||''} ${p?.nomJ2||''}</span><span style="font-size:9px;color:var(--tx2);">${p?.poids||''}</span>${extra}</div>`;
 }
 
+// ── RENDER HORAIRES ───────────────────
 function renH(d){
+  const dp=document.getElementById('dp').value;
+  const dc=document.getElementById('dc').value;
   const secs={1:'1/8 de finale',5:'Classement 9-12',7:'Quarts de finale',11:'Classement (suite)',13:'Classement 5-8',15:'Demi-finales',17:'Classements finaux',20:'Finale'};
-  let h=`<div class="stl" style="margin-bottom:11px;">Planning TMC · ${document.getElementById('np').value} piste(s) · ${document.getElementById('dm').value} min/match</div>`;
+  const clsMatchs=new Set([5,6,11,12,13,14,17,18,19]);
+  let h=`<div class="stl" style="margin-bottom:11px;">Planning TMC · ${document.getElementById('np').value} piste(s) · Principal ${dp}min · Classement ${dc}min</div>`;
   d.matchs.forEach(m=>{
     if(secs[m.num])h+=`<div style="font-size:10px;font-weight:700;color:var(--tx2);font-family:var(--mo);padding:7px 0 3px;text-transform:uppercase;letter-spacing:.08em;">${secs[m.num]}</div>`;
     const as=m.pA?`${m.pA.prenJ1} ${m.pA.nomJ1} / ${m.pA.prenJ2} ${m.pA.nomJ2}`:(m.libA||'?');
     const bs=m.pB?`${m.pB.prenJ1} ${m.pB.nomJ1} / ${m.pB.prenJ2} ${m.pB.nomJ2}`:(m.libB||'?');
-    const cls=m.num===20?'srow fin':'srow';
-    h+=`<div class="${cls}"><div class="st">${m.heure||'?'}</div><div style="font-family:var(--mo);font-size:11px;color:var(--tx2);font-weight:700;">M${m.num}</div><div style="font-size:11px;"><strong>${as}</strong><span style="color:var(--or);font-size:10px;margin:0 4px;">VS</span><strong>${bs}</strong></div><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);">${m.ordre}</div><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);text-align:right;">T.${m.piste||'?'}</div></div>`;
+    const isCls=clsMatchs.has(m.num);
+    const cls=m.num===20?'srow fin':isCls?'srow cls':'srow';
+    const durTag=isCls?`<span style="font-size:9px;color:var(--am);font-family:var(--mo);">${dc}min</span>`:`<span style="font-size:9px;color:var(--tx2);font-family:var(--mo);">${dp}min</span>`;
+    h+=`<div class="${cls}"><div class="st">${m.heure||'?'}</div><div style="font-family:var(--mo);font-size:11px;color:var(--tx2);font-weight:700;">M${m.num}</div><div style="font-size:11px;"><strong>${as}</strong><span style="color:var(--or);font-size:10px;margin:0 4px;">VS</span><strong>${bs}</strong></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">${durTag}<span style="font-size:10px;color:var(--tx2);font-family:var(--mo);">${m.ordre}</span></div><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);text-align:right;">T.${m.piste||'?'}</div></div>`;
   });
   document.getElementById('th').innerHTML=h;
 }
 
+// ── RENDER MESSAGES ───────────────────
 function renMsg(d){
   let h=`<div class="stl" style="margin-bottom:11px;">Messages convocation — ${d.messages.length} joueurs</div><div class="mg">`;
   d.messages.forEach(m=>{
@@ -276,15 +394,17 @@ function renMsg(d){
   document.getElementById('tm').innerHTML=h;
 }
 
+// ── RAZ ───────────────────────────────
 function raz(){
-  csvText=''; genData=null;
+  csvText=''; genData=null; pairesLoaded=[];
   document.getElementById('dz-ok').style.display='none';
   document.getElementById('dz').classList.remove('ok');
   document.getElementById('bg').disabled=true;
   document.getElementById('b-tab').disabled=true;
   document.getElementById('b-fdr').disabled=true;
-  document.getElementById('twilio-box').style.display='none';
+  document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
+  document.getElementById('contraintes-list').innerHTML='';
   ['tt','th','tm'].forEach(t=>document.getElementById(t).innerHTML=`<div class="empty"><div class="empty-i">🎾</div>En attente</div>`);
   document.getElementById('sb').textContent='En attente du CSV FFT';
 }
