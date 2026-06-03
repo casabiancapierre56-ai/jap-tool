@@ -37,7 +37,7 @@ body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh
 .btn2:hover{background:var(--bd);color:var(--tx);}
 /* Contraintes */
 .contraintes-box{margin-top:8px;}
-.contrainte-row{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;margin-bottom:6px;}
+.contrainte-row{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding:8px;background:var(--dk3);border-radius:6px;border:1px solid var(--bd);}
 .contrainte-row select,.contrainte-row input[type=time]{padding:6px 8px;font-size:11px;}
 .btn-add{background:var(--dk3);border:1px solid var(--bd);color:var(--gr);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--mo);white-space:nowrap;}
 .btn-del{background:none;border:none;color:var(--am);cursor:pointer;font-size:14px;padding:0 4px;}
@@ -227,7 +227,7 @@ function ajouterContrainte(){
   inp.type='time';
   inp.className='contrainte-heure';
   inp.value='10:00';
-  inp.style='width:95px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;';
+  inp.style='width:100%;background:var(--dk2);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;';
   
   // Bouton supprimer
   const btn=document.createElement('button');
@@ -235,9 +235,22 @@ function ajouterContrainte(){
   btn.className='btn-del';
   btn.onclick=function(){this.parentElement.remove();};
   
+  // Label paire
+  const lbl1=document.createElement('div');
+  lbl1.textContent='Paire'; lbl1.style='font-size:10px;color:var(--tx2);font-family:var(--mo);';
+  // Label heure
+  const lbl2=document.createElement('div');
+  lbl2.textContent='Disponible à partir de'; lbl2.style='font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:4px;';
+  // Row heure + bouton
+  const rowH=document.createElement('div');
+  rowH.style='display:flex;gap:6px;align-items:center;';
+  rowH.appendChild(inp);
+  rowH.appendChild(btn);
+  
+  div.appendChild(lbl1);
   div.appendChild(sel);
-  div.appendChild(inp);
-  div.appendChild(btn);
+  div.appendChild(lbl2);
+  div.appendChild(rowH);
   list.appendChild(div);
 }
 
