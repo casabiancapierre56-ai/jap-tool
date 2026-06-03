@@ -602,8 +602,8 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
                     alertes.append({
                         'level': 'error',
                         'message': f'❌ Contrainte impossible : {p["nf"]} doit jouer un 1/8 de finale '
-                                   f'mais est disponible à {heure_c} — après la fin des 1/8 (~{min_to_hm(h_18_v2 + duree_principal)}). '
-                                   f'Envisager de retirer la paire ou de décaler l'heure de début du tournoi.'
+                                   f'mais est disponible à {heure_c} — apres la fin des 1/8 (~{min_to_hm(h_18_v2 + duree_principal)}). '
+                                   f'Envisager de retirer la paire ou de decaler heure debut du tournoi.'
                     })
                 elif hc_min > h_18_v1 + duree_principal // 2:
                     alertes.append({
