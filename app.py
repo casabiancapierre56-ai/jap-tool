@@ -263,195 +263,213 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
 # ── Génération PDF feuille de route ──────
 # Fidèle au modèle Arena18 officiel
 def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
-    W, H = A4  # 595 x 842
+    W, H = A4
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
 
     # ── HEADER ──────────────────────────
-    # Bande blanche de fond
-    c.setFillColorRGB(1, 1, 1)
-    c.rect(0, H-95, W, 95, fill=1, stroke=0)
+    c.setFillColorRGB(1,1,1)
+    c.rect(0, H-88, W, 88, fill=1, stroke=0)
 
     # Logo Arena18
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(22, H-35, "Arena18")
+    c.setFillColorRGB(0,0,0)
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(18, H-28, "Arena18")
     c.setFont("Helvetica", 7)
-    c.setFillColorRGB(0.4, 0.4, 0.4)
-    c.drawString(22, H-46, "VOUS DE JOUER")
+    c.setFillColorRGB(0.5,0.5,0.5)
+    c.drawString(18, H-38, "VOUS DE JOUER")
 
-    # TOURNOI P250
-    c.setFillColorRGB(0, 0, 0)
+    # TOURNOI + P250 + by sponsor
+    c.setFillColorRGB(0,0,0)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(W/2, H-18, "TOURNOI")
+    c.setFont("Helvetica-Bold", 34)
+    c.drawCentredString(W/2 - 20, H-52, "P250")
+    c.setFont("Helvetica", 9)
+    c.setFillColorRGB(0.3,0.3,0.3)
+    c.drawString(W/2 + 22, H-42, "by")
     c.setFont("Helvetica-Bold", 11)
-    c.drawCentredString(W/2, H-25, "TOURNOI")
-    c.setFont("Helvetica-Bold", 28)
-    c.drawCentredString(W/2, H-55, "P250")
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(W/2, H-68, f"by {sponsor}")
+    c.setFillColorRGB(0,0,0)
+    sp_parts = sponsor.upper().split()
+    if len(sp_parts) >= 2:
+        c.drawString(W/2 + 30, H-50, sp_parts[0])
+        c.setFont("Helvetica", 8)
+        c.drawString(W/2 + 30, H-60, ' '.join(sp_parts[1:]))
+    else:
+        c.drawString(W/2 + 30, H-52, sponsor.upper())
 
     # 12 équipes + format
-    c.setFillColorRGB(0, 0, 0)
+    c.setFillColorRGB(0,0,0)
     c.setFont("Helvetica-Bold", 16)
-    c.drawRightString(W-22, H-28, "12 équipes")
+    c.drawRightString(W-18, H-20, "12 équipes")
     c.setFont("Helvetica-Bold", 8)
-    c.drawRightString(W-22, H-42, "Format D2:")
+    c.drawRightString(W-18, H-33, "Format D2:")
+    fmt_lines = format_jeu.split(',')
     c.setFont("Helvetica", 7.5)
-    c.drawRightString(W-22, H-53, format_jeu[:40])
+    for i, fl in enumerate(fmt_lines[:3]):
+        c.drawRightString(W-18, H-43-i*9, fl.strip())
 
     # DATE
     c.setFont("Helvetica-Bold", 13)
-    c.setFillColorRGB(0, 0, 0)
-    c.drawString(22, H-82, f"DATE :  {date_str.upper() if date_str else ''}")
+    c.drawString(18, H-72, f"DATE :  {date_str.upper() if date_str else ''}")
 
-    # ── LIGNE SÉPARATRICE ───────────────
-    c.setLineWidth(1.5)
-    c.setStrokeColorRGB(0, 0, 0)
-    c.line(22, H-92, W-22, H-92)
+    # Séparatrice
+    c.setLineWidth(2)
+    c.line(18, H-82, W-18, H-82)
     c.setLineWidth(0.5)
 
-    # ── EN-TÊTES COLONNES ───────────────
-    y_hdr = H - 104
-    # Fond noir header
-    c.setFillColorRGB(0, 0, 0)
-    c.rect(22, y_hdr - 2, W-44, 14, fill=1, stroke=0)
-    c.setFillColorRGB(1, 1, 1)
+    # ── EN-TÊTES ────────────────────────
+    y_hdr = H - 94
+    c.setFillColorRGB(0,0,0)
+    c.rect(18, y_hdr-2, W-36, 13, fill=1, stroke=0)
+    c.setFillColorRGB(1,1,1)
     c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(40, y_hdr + 3, "MATCHS")
-    c.drawCentredString(W/2 - 30, y_hdr + 3, "NOM DES ÉQUIPES")
-    c.drawCentredString(W - 120, y_hdr + 3, "ORDRE\nMATCHS")
-    c.drawCentredString(W - 50, y_hdr + 3, "ORDRE A SUIVRE")
-    c.setFillColorRGB(0, 0, 0)
+    c.drawCentredString(33, y_hdr+3, "MATCHS")
+    c.drawCentredString(W/2 - 20, y_hdr+3, "NOM DES ÉQUIPES")
+    c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(W-112, y_hdr+3, "ORDRE")
+    c.drawCentredString(W-112, y_hdr-2, "MATCHS")
+    c.drawCentredString(W-48, y_hdr+3, "ORDRE A SUIVRE")
+    c.setFillColorRGB(0,0,0)
 
-    # ── LIGNES MATCHS ───────────────────
+    # ── LIGNES MATCHS ────────────────────
     y = y_hdr - 16
-    row_h = 18.5
-    BALLES_MATCHS = {1, 2, 7, 8, 15, 16, 20}
+    row_h = 18.2
+    BALLES = {1,2,7,8,15,16,20}
 
     for m in matchs:
-        if y < 55:  # protection bas de page
-            break
+        if y < 42: break
+        num = m['num']
 
-        # Fond alterné
-        if m['num'] == 20:
-            c.setFillColorRGB(0, 0, 0)
+        # Fond
+        if num == 20:
+            c.setFillColorRGB(0,0,0)
+        elif num % 2 == 0:
+            c.setFillColorRGB(0.93,0.93,0.93)
         else:
-            bg = (1,1,1) if m['num'] % 2 == 1 else (0.95, 0.95, 0.95)
-            c.setFillColorRGB(*bg)
-        c.rect(22, y - 3, W-44, row_h, fill=1, stroke=0)
+            c.setFillColorRGB(1,1,1)
+        c.rect(18, y-3, W-36, row_h, fill=1, stroke=0)
 
-        # Bordure ligne
-        c.setStrokeColorRGB(0.8, 0.8, 0.8)
-        c.line(22, y - 3, W-22, y - 3)
-        c.setStrokeColorRGB(0, 0, 0)
+        # Bordure basse
+        c.setStrokeColorRGB(0.75,0.75,0.75)
+        c.line(18, y-3, W-18, y-3)
+        c.setStrokeColorRGB(0,0,0)
 
-        tc = (1,1,1) if m['num'] == 20 else (0,0,0)
+        tc = (1,1,1) if num==20 else (0,0,0)
         c.setFillColorRGB(*tc)
 
-        # Numéro match
+        # Numéro
         c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(35, y + 4, str(m['num']))
+        c.drawCentredString(30, y+4, str(num))
 
-        # Icône balle jaune
-        if m['num'] in BALLES_MATCHS:
-            c.setFillColorRGB(0.78, 0.70, 0.0)
-            c.circle(48, y + 6, 5, fill=1, stroke=0)
-            # Texte "Balles" en blanc
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont("Helvetica-Bold", 3.5)
-            c.drawCentredString(48, y + 5.5, "Balles")
-            c.drawCentredString(48, y + 3, "Neuves")
+        # Balle
+        if num in BALLES:
+            c.setFillColorRGB(0.76,0.68,0.0)
+            c.circle(44, y+6, 5.5, fill=1, stroke=0)
+            c.setFillColorRGB(1,1,1)
+            c.setFont("Helvetica-Bold", 3.2)
+            c.drawCentredString(44, y+7.5, "Balles")
+            c.drawCentredString(44, y+4.5, "Neuves")
             c.setFillColorRGB(*tc)
 
-        # Nom des équipes
-        x_eq = 58
-        if m.get('pA') and m.get('pB'):
+        # Équipes
+        x_eq = 52
+        if num == 20:
+            c.setFont("Helvetica-Bold", 14)
+            c.setFillColorRGB(1,1,1)
+            c.drawCentredString(W/2 - 35, y+4, "FINALE !")
+        elif m.get('pA') and m.get('pB'):
             pa, pb = m['pA'], m['pB']
+            ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
+            eb = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
             c.setFont("Helvetica-Bold", 8)
-            nom_a = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
-            nom_b = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
-            c.drawString(x_eq, y + 9, nom_a)
-            c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(x_eq, y + 1, "VS")
+            c.drawString(x_eq, y+9, ea[:58])
+            c.setFont("Helvetica", 7); c.setFillColorRGB(0.4,0.4,0.4)
+            c.drawString(x_eq, y+1, "VS")
             c.setFont("Helvetica-Bold", 8); c.setFillColorRGB(*tc)
-            c.drawString(x_eq + 12, y + 1, nom_b)
+            c.drawString(x_eq+11, y+1, eb[:58])
         elif m.get('pB') and m.get('libA'):
             pb = m['pB']
-            c.setFont("Helvetica-Bold", 8)
-            c.drawString(x_eq, y + 9, m['libA'])
-            c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(x_eq, y + 1, "VS")
-            c.setFillColorRGB(0.7, 0.1, 0.1) if m['num'] != 20 else c.setFillColorRGB(1,0.5,0.5)
-            c.setFont("Helvetica-Bold", 8)
             ts_nom = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
-            c.drawString(x_eq + 12, y + 1, ts_nom)
-            c.setFillColorRGB(*tc)
-        elif m['num'] == 20:
-            c.setFont("Helvetica-Bold", 14)
-            c.setFillColorRGB(1, 1, 1)
-            c.drawCentredString(W/2 - 40, y + 5, "FINALE !")
-            c.setFillColorRGB(1,1,1)
-        else:
             c.setFont("Helvetica-Bold", 8)
-            la = m.get('libA', '')
-            lb = m.get('libB', '')
-            if la and lb:
-                c.drawString(x_eq, y + 5, f"{la}   VS   {lb}")
+            c.drawString(x_eq, y+9, m['libA'])
+            c.setFont("Helvetica", 7); c.setFillColorRGB(0.4,0.4,0.4)
+            c.drawString(x_eq, y+1, "VS")
+            c.setFont("Helvetica-Bold", 8)
+            c.setFillColorRGB(0.75,0.1,0.1)
+            c.drawString(x_eq+11, y+1, ts_nom[:60])
+            c.setFillColorRGB(*tc)
+        else:
+            ea = m.get('libA','')
+            eb = m.get('libB','')
+            c.setFont("Helvetica-Bold", 8)
+            if ea and eb:
+                c.drawString(x_eq, y+4, f"{ea}   VS   {eb}")
             else:
-                c.drawString(x_eq, y + 5, la or lb or '')
+                c.drawString(x_eq, y+4, ea or eb or '')
 
-        # Ligne diagonale score (sauf finale)
-        if m['num'] != 20:
-            c.setStrokeColorRGB(0.3, 0.3, 0.3)
-            c.setLineWidth(0.8)
-            x_slash = W - 155
-            c.line(x_slash, y - 2, x_slash + 30, y + row_h - 2)
+        c.setFillColorRGB(*tc)
+
+        # Diagonale score
+        if num != 20:
+            c.setStrokeColorRGB(0.4,0.4,0.4)
+            c.setLineWidth(0.7)
+            xs = W - 150
+            c.line(xs, y-2, xs+28, y+row_h-4)
             c.setLineWidth(0.5)
-            c.setStrokeColorRGB(0, 0, 0)
+            c.setStrokeColorRGB(0,0,0)
 
         # Ordre match
         c.setFillColorRGB(*tc)
         c.setFont("Helvetica-Bold", 8)
-        c.drawCentredString(W - 118, y + 5, m['ordre'])
+        c.drawCentredString(W-111, y+4, m['ordre'])
 
-        # Ordre à suivre (terrain)
-        c.setFont("Helvetica", 7)
-        terrain_txt = m.get('terrain_str', '1ER TERRAIN\nQUI SE LIBÈRE')
-        lines_t = terrain_txt.split('\n')
-        if len(lines_t) == 2:
-            c.drawCentredString(W - 48, y + 8, lines_t[0])
-            c.drawCentredString(W - 48, y + 1, lines_t[1])
+        # Terrain
+        terrain = m.get('terrain_str','1ER TERRAIN\nQUI SE LIBÈRE')
+        lignes_t = terrain.split('\n')
+        num_match = m['num']
+        if num_match <= 2:
+            c.setFont("Helvetica-Bold", 7)
+            c.setFillColorRGB(0,0.2,0.7) if num!=20 else None
         else:
-            c.drawCentredString(W - 48, y + 5, terrain_txt)
+            c.setFont("Helvetica", 7)
+        if len(lignes_t) == 2:
+            c.drawCentredString(W-46, y+8, lignes_t[0])
+            c.drawCentredString(W-46, y+1, lignes_t[1])
+        else:
+            c.drawCentredString(W-46, y+4, terrain)
+        c.setFillColorRGB(*tc)
 
         # Séparateurs verticaux
-        c.setStrokeColorRGB(0.7, 0.7, 0.7)
-        c.line(55, y-3, 55, y+row_h-3)      # après numéro
-        c.line(W-135, y-3, W-135, y+row_h-3) # avant ordre match
-        c.line(W-80, y-3, W-80, y+row_h-3)   # avant terrain
-        c.setStrokeColorRGB(0, 0, 0)
+        c.setStrokeColorRGB(0.6,0.6,0.6)
+        c.line(50, y-3, 50, y+row_h-3)
+        c.line(W-131, y-3, W-131, y+row_h-3)
+        c.line(W-79, y-3, W-79, y+row_h-3)
+        c.setStrokeColorRGB(0,0,0)
 
         y -= row_h
 
-    # ── BORDURE TABLEAU ─────────────────
-    c.setLineWidth(1)
-    c.rect(22, y + row_h - 3, W-44, y_hdr - 2 - (y + row_h - 3) + 16, fill=0, stroke=1)
-
-    # ── FOOTER LOGOS ────────────────────
-    y_footer = 22
+    # Bordure extérieure
+    c.setLineWidth(1.2)
+    c.rect(18, y+row_h-3, W-36, y_hdr-2-(y+row_h-3)+16, fill=0, stroke=1)
     c.setLineWidth(0.5)
-    c.line(22, y_footer + 14, W-22, y_footer + 14)
-    logos = ["CONVI GROUPE", "FFT PADEL", sponsor.upper(), "DÉCATHLON"]
-    for i, logo in enumerate(logos):
-        x_logo = 30 + i * 130
-        c.setFillColorRGB(0, 0, 0)
-        c.setFont("Helvetica-Bold", 7.5)
-        c.drawString(x_logo, y_footer + 4, logo)
-        c.setLineWidth(0.5)
-        c.rect(x_logo - 3, y_footer, 100, 12, fill=0, stroke=1)
+
+    # ── FOOTER ──────────────────────────
+    yf = 16
+    c.line(18, yf+18, W-18, yf+18)
+    logos_f = ["CONVI GROUPE", "FFT PADEL", "TEN NIS", sponsor.upper(), "DÉCATHLON"]
+    lw = (W-36) / len(logos_f)
+    for i, logo in enumerate(logos_f):
+        x_l = 18 + i*lw + lw/2
+        c.setFillColorRGB(0,0,0)
+        c.setFont("Helvetica-Bold", 7)
+        c.drawCentredString(x_l, yf+7, logo)
+        c.rect(18+i*lw+3, yf+2, lw-6, 13, fill=0, stroke=1)
 
     c.save()
     packet.seek(0)
     return packet.getvalue()
+
 
 # ── Routes Flask ─────────────────────────
 @app.route('/')
