@@ -37,13 +37,11 @@ body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 .btn2{background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);margin-top:5px;font-weight:600;}
 .btn2:hover{background:var(--bd);color:var(--tx);}
-/* Contraintes */
 .contraintes-box{margin-top:8px;}
 .contrainte-row{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding:8px;background:var(--dk3);border-radius:6px;border:1px solid var(--bd);}
 .contrainte-row select,.contrainte-row input[type=time]{padding:6px 8px;font-size:11px;}
 .btn-add{background:var(--dk3);border:1px solid var(--bd);color:var(--gr);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--mo);white-space:nowrap;}
 .btn-del{background:none;border:none;color:var(--am);cursor:pointer;font-size:14px;padding:0 4px;}
-/* Main */
 .main{padding:18px;overflow-y:auto;}
 .tabs{display:flex;gap:3px;margin-bottom:16px;background:var(--dk2);padding:4px;border-radius:8px;width:fit-content;}
 .tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--tx2);border:none;background:none;font-family:var(--mo);transition:all .2s;}
@@ -91,6 +89,38 @@ tr:hover td{background:var(--dk3);}
 .alerte-count.error{background:#8a2020;color:#ffb0b0;}
 .alerte-count.warning{background:#8a5000;color:#ffd080;}
 .alerte-count.info{background:#1a5080;color:#a0d0ff;}
+
+/* ── BOUTONS ACTION TABLEAU ── */
+.btn-edit{background:none;border:1px solid var(--bd);color:var(--tx2);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:var(--mo);transition:all .15s;}
+.btn-edit:hover{border-color:var(--or);color:var(--or);}
+.btn-forfait{background:none;border:1px solid var(--bd);color:var(--tx2);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:var(--mo);transition:all .15s;margin-left:4px;}
+.btn-forfait:hover{border-color:#c0392b;color:#e74c3c;}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--dk2);border:1px solid var(--bd);border-radius:14px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:4px;}
+.modal-sub{font-size:11px;color:var(--tx2);font-family:var(--mo);margin-bottom:18px;}
+.modal-section{background:var(--dk3);border-radius:8px;padding:14px;margin-bottom:12px;}
+.modal-section-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);font-family:var(--mo);margin-bottom:10px;}
+.modal-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.modal-fi{margin-bottom:8px;}
+.modal-fi label{display:block;font-size:10px;color:var(--tx2);margin-bottom:3px;font-family:var(--mo);}
+.modal-fi input{width:100%;background:var(--dk2);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;outline:none;}
+.modal-fi input:focus{border-color:var(--or);}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.modal-btn{flex:1;padding:10px;border-radius:8px;font-family:var(--sa);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .2s;}
+.modal-btn.primary{background:var(--or);color:#fff;}
+.modal-btn.primary:hover{background:var(--orl);}
+.modal-btn.secondary{background:var(--dk3);border:1px solid var(--bd);color:var(--tx);}
+.modal-btn.secondary:hover{border-color:var(--or);color:var(--or);}
+.modal-btn.danger{background:#2a0a0a;border:1px solid #8a2020;color:#ff8080;}
+.modal-btn.danger:hover{background:#8a2020;}
+.modal-btn.cancel{background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);}
+.choice-btn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd);background:var(--dk3);color:var(--tx);font-family:var(--mo);font-size:11px;cursor:pointer;text-align:left;margin-bottom:8px;transition:all .2s;}
+.choice-btn:hover{border-color:var(--or);background:#1f0f00;}
+.choice-btn span{display:block;font-size:9px;color:var(--tx2);margin-top:3px;}
+.warn-badge{display:inline-block;background:#3a1800;border:1px solid var(--am);color:var(--am);font-size:10px;font-family:var(--mo);padding:4px 10px;border-radius:6px;margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -104,13 +134,10 @@ tr:hover td{background:var(--dk3);}
   <div class="side">
     <div class="stl">⚙ Tournoi</div>
     <div class="fi"><label>Niveau du tournoi</label>
-      <select id="niveau" onchange="onNiveauChange()" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;outline:none;transition:border-color .2s;">
-        <option value="P25">P25</option>
-        <option value="P100">P100</option>
-        <option value="P250" selected>P250 ⭐</option>
-        <option value="P500">P500</option>
-        <option value="P1000">P1000</option>
-        <option value="P1500">P1500</option>
+      <select id="niveau" onchange="onNiveauChange()">
+        <option value="P25">P25</option><option value="P100">P100</option>
+        <option value="P250" selected>P250 ⭐</option><option value="P500">P500</option>
+        <option value="P1000">P1000</option><option value="P1500">P1500</option>
         <option value="P2000">P2000</option>
       </select>
     </div>
@@ -124,54 +151,11 @@ tr:hover td{background:var(--dk3);}
       <div class="fi"><label>Durée match classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
     </div>
     <div class="fi"><label>Format de jeu — Tableau principal</label>
-      <select id="fg" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;outline:none;">
-        <optgroup label="── Format D (1 set) ──">
-          <option value="D2 : 1 set 9 jeux, NO-AD, jeu décisif à 7pts à 8/8" selected>D2 — 1 set 9 jeux, NO-AD ⭐ Recommandé P250</option>
-          <option value="D1 : 1 set 9 jeux, avec avantage, jeu décisif à 8/8">D1 — 1 set 9 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format B (2 sets) ──">
-          <option value="B2 : 2 sets 6 jeux, NO-AD, super jeu décisif 10 pts">B2 — 2 sets 6 jeux, NO-AD</option>
-          <option value="B1 : 2 sets 6 jeux, avec avantage, super jeu décisif 10 pts">B1 — 2 sets 6 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format A (3 sets) ──">
-          <option value="A2 : 3 sets 6 jeux, NO-AD, jeu décisif à 6/6">A2 — 3 sets 6 jeux, NO-AD</option>
-          <option value="A1 : 3 sets 6 jeux, avec avantage, jeu décisif à 6/6">A1 — 3 sets 6 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format C (2 sets courts) ──">
-          <option value="C2 : 2 sets 4 jeux, NO-AD, jeu décisif à 4/4">C2 — 2 sets 4 jeux, NO-AD</option>
-          <option value="C1 : 2 sets 4 jeux, avec avantage, jeu décisif à 4/4">C1 — 2 sets 4 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Formats courts ──">
-          <option value="F : 1 set 4 jeux, NO-AD, jeu décisif à 3/3 ⚡ Rapide">F — 1 set 4 jeux, NO-AD ⚡ Plus rapide</option>
-          <option value="E : Super jeu décisif 10 points">E — Super jeu décisif 10 pts</option>
-        </optgroup>
-      </select>
+      <select id="fg"></select>
     </div>
     <div class="fi"><label>Format de jeu — Matchs de classement</label>
-      <select id="fg-cls" style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;outline:none;">
-        <optgroup label="── Format D (1 set) ──">
-          <option value="D2 : 1 set 9 jeux, NO-AD, jeu décisif à 7pts à 8/8">D2 — 1 set 9 jeux, NO-AD</option>
-          <option value="D1 : 1 set 9 jeux, avec avantage, jeu décisif à 8/8">D1 — 1 set 9 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format B (2 sets) ──">
-          <option value="B2 : 2 sets 6 jeux, NO-AD, super jeu décisif 10 pts">B2 — 2 sets 6 jeux, NO-AD</option>
-          <option value="B1 : 2 sets 6 jeux, avec avantage, super jeu décisif 10 pts">B1 — 2 sets 6 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format A (3 sets) ──">
-          <option value="A2 : 3 sets 6 jeux, NO-AD, jeu décisif à 6/6">A2 — 3 sets 6 jeux, NO-AD</option>
-          <option value="A1 : 3 sets 6 jeux, avec avantage, jeu décisif à 6/6">A1 — 3 sets 6 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Format C (2 sets courts) ──">
-          <option value="C2 : 2 sets 4 jeux, NO-AD, jeu décisif à 4/4">C2 — 2 sets 4 jeux, NO-AD</option>
-          <option value="C1 : 2 sets 4 jeux, avec avantage, jeu décisif à 4/4">C1 — 2 sets 4 jeux, avec avantage</option>
-        </optgroup>
-        <optgroup label="── Formats courts ──">
-          <option value="F : 1 set 4 jeux, NO-AD, jeu décisif à 3/3" selected>F — 1 set 4 jeux, NO-AD ⚡ Recommandé classement</option>
-          <option value="E : Super jeu décisif 10 points">E — Super jeu décisif 10 pts</option>
-        </optgroup>
-      </select>
+      <select id="fg-cls"></select>
     </div>
-
     <div class="div"></div>
     <div class="stl">📂 CSV FFT</div>
     <div class="dz" id="dz">
@@ -181,14 +165,12 @@ tr:hover td{background:var(--dk3);}
       <div class="dz-sub">Export direct depuis le site FFT</div>
       <div class="dz-ok" id="dz-ok"></div>
     </div>
-
     <div class="div"></div>
     <div class="stl">⏰ Contraintes horaires
       <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
     </div>
     <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Si une paire ne peut pas jouer avant une certaine heure</div>
     <div id="contraintes-list"></div>
-
     <div class="div"></div>
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
@@ -216,8 +198,122 @@ tr:hover td{background:var(--dk3);}
   </div>
 </div>
 
+<!-- ══════════════════════════════════════
+     MODAL MODIFIER JOUEUR
+══════════════════════════════════════ -->
+<div class="modal-bg" id="modal-edit" style="display:none" onclick="if(event.target===this)closeModal('modal-edit')">
+<div class="modal">
+  <h2>✏️ Modifier une paire</h2>
+  <div class="modal-sub" id="edit-sub"></div>
+  <div class="warn-badge">⚠️ Tableau déjà généré — modification hors règlement FFT si tableau affiché</div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">👤 Joueur 1</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom</label><input id="e-pren1" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom</label><input id="e-nom1" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence</label><input id="e-lic1" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Téléphone</label><input id="e-tel1" placeholder="06XXXXXXXX"/></div>
+    </div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">👤 Joueur 2</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom</label><input id="e-pren2" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom</label><input id="e-nom2" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence</label><input id="e-lic2" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Téléphone</label><input id="e-tel2" placeholder="06XXXXXXXX"/></div>
+    </div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">🏆 Poids de la paire</div>
+    <div class="modal-fi"><label>Poids (classement FFT)</label><input id="e-poids" type="number" placeholder="ex: 12500"/></div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">⚙️ Type de modification</div>
+    <button class="choice-btn" onclick="appliquerModif('nom')">
+      ✏️ Remplacer le nom seulement
+      <span>Garde la même position dans le tableau. Juste les noms changent. Nouveau PDF + convocations.</span>
+    </button>
+    <button class="choice-btn" onclick="appliquerModif('recalcul')">
+      🔄 Recalculer tout le tableau
+      <span>Nouveau poids → nouveau tirage → nouveau tableau complet + convocations.</span>
+    </button>
+  </div>
+
+  <div class="modal-actions">
+    <button class="modal-btn cancel" onclick="closeModal('modal-edit')">Annuler</button>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL FORFAIT
+══════════════════════════════════════ -->
+<div class="modal-bg" id="modal-forfait" style="display:none" onclick="if(event.target===this)closeModal('modal-forfait')">
+<div class="modal">
+  <h2>🗑️ Forfait paire</h2>
+  <div class="modal-sub" id="forfait-sub"></div>
+  <div class="warn-badge">⚠️ La paire sera retirée du tableau</div>
+
+  <div class="modal-section" style="border:1px solid #8a2020;background:#2a0a0a;">
+    <div class="modal-section-title" style="color:#ff8080;">Paire forfait</div>
+    <div id="forfait-paire-info" style="font-size:12px;font-family:var(--mo);color:#ff8080;"></div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">➕ Nouvelle paire remplaçante (optionnel)</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom J1</label><input id="f-pren1" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom J1</label><input id="f-nom1" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence J1</label><input id="f-lic1" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Tél J1</label><input id="f-tel1" placeholder="06XXXXXXXX"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom J2</label><input id="f-pren2" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom J2</label><input id="f-nom2" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence J2</label><input id="f-lic2" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Tél J2</label><input id="f-tel2" placeholder="06XXXXXXXX"/></div>
+    </div>
+    <div class="modal-fi"><label>Poids de la nouvelle paire</label><input id="f-poids" type="number" placeholder="ex: 12500"/></div>
+  </div>
+
+  <div class="modal-section">
+    <div class="modal-section-title">⚙️ Action</div>
+    <button class="choice-btn" onclick="appliquerForfait('meme')">
+      📌 Mettre la nouvelle paire à la même position
+      <span>Remplace directement dans le tableau. Nouveau PDF + convocations.</span>
+    </button>
+    <button class="choice-btn" onclick="appliquerForfait('recalcul')">
+      🔄 Recalculer tout le tableau avec la nouvelle paire
+      <span>Nouveau poids intégré → nouveau tirage complet + convocations.</span>
+    </button>
+    <button class="choice-btn" onclick="appliquerForfait('supprimer')" style="border-color:#8a2020;">
+      🗑️ Supprimer sans remplacer
+      <span style="color:#ff8080;">Retire la paire du tableau. Ne fonctionne que si liste ≥ 12 paires.</span>
+    </button>
+  </div>
+
+  <div class="modal-actions">
+    <button class="modal-btn cancel" onclick="closeModal('modal-forfait')">Annuler</button>
+  </div>
+</div>
+</div>
+
 <script>
 let csvText='', genData=null, pairesLoaded=[];
+let editPaireId=null, forfaitPaireId=null;
 
 function st(n){
   ['tt','th','tm'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
@@ -230,7 +326,6 @@ function loadFile(file){
   const r=new FileReader();
   r.onload=e=>{
     csvText=e.target.result.replace(/^\uFEFF/,'');
-    // Parser pour avoir les paires disponibles pour les contraintes
     parsePairesPreview(csvText);
     document.getElementById('dz-ok').textContent='✓ Fichier chargé — prêt à générer';
     document.getElementById('dz-ok').style.display='block';
@@ -252,15 +347,10 @@ function parsePairesPreview(text){
     if(c.length<20)continue;
     const poids=parseInt(c[19].trim());
     if(isNaN(poids))continue;
-    pairesLoaded.push({
-      id: pairesLoaded.length+1,
-      nom: `${c[4].trim()} ${c[3].trim()} / ${c[12].trim()} ${c[11].trim()}`,
-      poids
-    });
+    pairesLoaded.push({id:pairesLoaded.length+1,nom:`${c[4].trim()} ${c[3].trim()} / ${c[12].trim()} ${c[11].trim()}`,poids});
   }
   pairesLoaded.sort((a,b)=>a.poids-b.poids);
   pairesLoaded.forEach((p,i)=>p.id=i+1);
-  // Mettre à jour les selects existants
   document.querySelectorAll('.contrainte-select').forEach(updateSelect);
 }
 
@@ -275,13 +365,10 @@ function updateSelect(sel){
   });
 }
 
-// ── CONTRAINTES ───────────────────────
 function ajouterContrainte(){
   const list=document.getElementById('contraintes-list');
   const div=document.createElement('div');
   div.className='contrainte-row';
-  
-  // Créer le select
   const sel=document.createElement('select');
   sel.className='contrainte-select';
   sel.style='background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;';
@@ -293,36 +380,20 @@ function ajouterContrainte(){
     o.value=p.id; o.textContent=p.nom+' ('+p.poids+')';
     sel.appendChild(o);
   });
-  
-  // Créer le champ heure
   const inp=document.createElement('input');
-  inp.type='time';
-  inp.className='contrainte-heure';
-  inp.value='10:00';
+  inp.type='time'; inp.className='contrainte-heure'; inp.value='10:00';
   inp.style='width:100%;background:var(--dk2);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;';
-  
-  // Bouton supprimer
   const btn=document.createElement('button');
-  btn.textContent='✕';
-  btn.className='btn-del';
+  btn.textContent='✕'; btn.className='btn-del';
   btn.onclick=function(){this.parentElement.remove();};
-  
-  // Label paire
   const lbl1=document.createElement('div');
   lbl1.textContent='Paire'; lbl1.style='font-size:10px;color:var(--tx2);font-family:var(--mo);';
-  // Label heure
   const lbl2=document.createElement('div');
   lbl2.textContent='Disponible à partir de'; lbl2.style='font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:4px;';
-  // Row heure + bouton
   const rowH=document.createElement('div');
   rowH.style='display:flex;gap:6px;align-items:center;';
-  rowH.appendChild(inp);
-  rowH.appendChild(btn);
-  
-  div.appendChild(lbl1);
-  div.appendChild(sel);
-  div.appendChild(lbl2);
-  div.appendChild(rowH);
+  rowH.appendChild(inp); rowH.appendChild(btn);
+  div.appendChild(lbl1); div.appendChild(sel); div.appendChild(lbl2); div.appendChild(rowH);
   list.appendChild(div);
 }
 
@@ -331,9 +402,7 @@ function getContraintes(){
   document.querySelectorAll('.contrainte-row').forEach(row=>{
     const sel=row.querySelector('.contrainte-select');
     const heure=row.querySelector('.contrainte-heure');
-    if(sel.value&&heure.value){
-      result[sel.value]=heure.value;
-    }
+    if(sel.value&&heure.value) result[sel.value]=heure.value;
   });
   return result;
 }
@@ -376,11 +445,6 @@ async function generer(){
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
-    // Afficher les contraintes actives
-    if(Object.keys(contraintes).length){
-      const nb=Object.keys(contraintes).length;
-      document.getElementById('sb').textContent+=` · ${nb} contrainte(s)`;
-    }
   } catch(e){ alert('Erreur : '+e.message); }
   finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
 }
@@ -405,7 +469,7 @@ async function dlPdf(type){
         formatJeu:document.getElementById('fg').value,
         formatJeuClassement:document.getElementById('fg-cls').value};
     const r=await fetch(`/pdf/${type}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    if(!r.ok)throw new Error('Erreur '+r.status);
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||'Erreur '+r.status);}
     const blob=await r.blob();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -436,63 +500,34 @@ async function envoyerSMS(){
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
 }
 
-// ── RENDER ALERTES ───────────────────
+// ── ALERTES ───────────────────────────
 function renAlertes(alertes){
-  if(!alertes||!alertes.length){
-    // Supprimer panel existant
-    const old=document.getElementById('alertes-panel');
-    if(old)old.remove();
-    return;
-  }
-  
-  const errors  = alertes.filter(a=>a.level==='error');
-  const warnings = alertes.filter(a=>a.level==='warning');
-  const infos    = alertes.filter(a=>a.level==='info');
-  
-  let h='<div id="alertes-panel" class="alertes-panel">';
-  
-  // Résumé
-  h+='<div class="alertes-summary">';
-  if(errors.length)   h+=`<span class="alerte-count error">🔴 ${errors.length} erreur${errors.length>1?'s':''}</span>`;
+  if(!alertes||!alertes.length){const old=document.getElementById('alertes-panel');if(old)old.remove();return;}
+  const errors=alertes.filter(a=>a.level==='error');
+  const warnings=alertes.filter(a=>a.level==='warning');
+  const infos=alertes.filter(a=>a.level==='info');
+  let h='<div id="alertes-panel" class="alertes-panel"><div class="alertes-summary">';
+  if(errors.length) h+=`<span class="alerte-count error">🔴 ${errors.length} erreur${errors.length>1?'s':''}</span>`;
   if(warnings.length) h+=`<span class="alerte-count warning">🟡 ${warnings.length} avertissement${warnings.length>1?'s':''}</span>`;
-  if(infos.length)    h+=`<span class="alerte-count info">🔵 ${infos.length} info${infos.length>1?'s':''}</span>`;
+  if(infos.length) h+=`<span class="alerte-count info">🔵 ${infos.length} info${infos.length>1?'s':''}</span>`;
   h+='</div>';
-  
-  // Erreurs d'abord
-  errors.forEach(a=>{
-    h+=`<div class="alerte error"><span class="alerte-icon">🔴</span><span>${a.message}</span></div>`;
-  });
-  // Avertissements
-  warnings.forEach(a=>{
-    h+=`<div class="alerte warning"><span class="alerte-icon">🟡</span><span>${a.message}</span></div>`;
-  });
-  // Infos (collapsibles)
+  errors.forEach(a=>h+=`<div class="alerte error"><span class="alerte-icon">🔴</span><span>${a.message}</span></div>`);
+  warnings.forEach(a=>h+=`<div class="alerte warning"><span class="alerte-icon">🟡</span><span>${a.message}</span></div>`);
   if(infos.length){
-    h+=`<details style="margin-top:4px;"><summary style="font-size:11px;color:var(--tx2);cursor:pointer;font-family:var(--mo);padding:4px 0;">🔵 ${infos.length} information${infos.length>1?'s':''} (cliquer pour voir)</summary>`;
-    infos.forEach(a=>{
-      h+=`<div class="alerte info"><span class="alerte-icon">🔵</span><span>${a.message}</span></div>`;
-    });
+    h+=`<details><summary style="font-size:11px;color:var(--tx2);cursor:pointer;font-family:var(--mo);padding:4px 0;">🔵 ${infos.length} information${infos.length>1?'s':''} (cliquer pour voir)</summary>`;
+    infos.forEach(a=>h+=`<div class="alerte info"><span class="alerte-icon">🔵</span><span>${a.message}</span></div>`);
     h+='</details>';
   }
-  
   h+='</div>';
-  
-  // Insérer avant le tableau
   const tabDiv=document.getElementById('tt');
   const existing=document.getElementById('alertes-panel');
-  if(existing) existing.remove();
-  tabDiv.insertAdjacentHTML('afterbegin', h);
-  
-  // Si erreurs → scroll vers le haut et afficher onglet tableau
-  if(errors.length){
-    st('tt');
-    tabDiv.scrollIntoView({behavior:'smooth'});
-  }
+  if(existing)existing.remove();
+  tabDiv.insertAdjacentHTML('afterbegin',h);
 }
 
 // ── RENDER TABLEAU ────────────────────
 function renTab(d){
-  const tc=ts=>ts?(parseInt(ts.replace('TS',''))<=2?'a':parseInt(ts.replace('TS',''))<=4?'b':'c'):'';
+  const contraintes=getContraintes();
   let h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">';
   h+='<div><div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);font-family:var(--mo);margin-bottom:7px;">Moitié haute — TS2</div>';
   for(let i=0;i<8;i++)h+=slH(d.tableau[i]);
@@ -501,14 +536,24 @@ function renTab(d){
   h+='</div></div>';
   h+='<div style="height:1px;background:var(--bd);margin:14px 0;"></div>';
   h+='<div class="stl">Classement des paires</div>';
-  h+='<div class="tw"><table><tr><th>#</th><th>Paire</th><th>Lic J1</th><th>Lic J2</th><th>Poids</th><th>TS</th><th>Statut</th><th>Contrainte</th></tr>';
-  const contraintes=getContraintes();
+  h+='<div class="tw"><table><tr><th>#</th><th>Paire</th><th>Lic J1</th><th>Lic J2</th><th>Poids</th><th>TS</th><th>Statut</th><th>Contrainte</th><th>Actions</th></tr>';
   d.paires.forEach((p,i)=>{
     const cc=i<2?'a':i<4?'b':'c';
     const ts=p.ts?`<span class="ts ${cc}">${p.ts}</span>`:'—';
-    const st=i<4?`<span style="color:var(--gr);font-size:10px;">BYE→QF</span>`:`<span style="color:var(--tx2);font-size:10px;">1/8</span>`;
+    const statut=i<4?`<span style="color:var(--gr);font-size:10px;">BYE→QF</span>`:`<span style="color:var(--tx2);font-size:10px;">1/8</span>`;
     const cstr=contraintes[String(p.id)]?`<span class="contrainte-badge">⏰ dès ${contraintes[String(p.id)]}</span>`:'—';
-    h+=`<tr><td style="font-family:var(--mo);color:var(--tx2);">${i+1}</td><td style="font-weight:600;">${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ1}</td><td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ2}</td><td style="font-family:var(--mo);color:var(--or);">${p.poids}</td><td>${ts}</td><td>${st}</td><td>${cstr}</td></tr>`;
+    h+=`<tr>
+      <td style="font-family:var(--mo);color:var(--tx2);">${i+1}</td>
+      <td style="font-weight:600;">${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}</td>
+      <td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ1}</td>
+      <td style="font-family:var(--mo);font-size:10px;color:var(--tx2);">${p.licJ2}</td>
+      <td style="font-family:var(--mo);color:var(--or);">${p.poids}</td>
+      <td>${ts}</td><td>${statut}</td><td>${cstr}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-edit" onclick="ouvrirEdit(${p.id})">✏️ Modifier</button>
+        <button class="btn-forfait" onclick="ouvrirForfait(${p.id})">🗑️ Forfait</button>
+      </td>
+    </tr>`;
   });
   h+='</table></div>';
   document.getElementById('tt').innerHTML=h;
@@ -522,7 +567,8 @@ function slH(s){
   const cls=isBye?'sl bye':(p?.ts?'sl sts':'sl');
   const badge=p?.ts?`<span class="ts ${tc2[p.ts]||'c'}">${p.ts}</span>`:'';
   const extra=isBye?`<span style="font-size:9px;color:var(--gr);">BYE→QF</span>`:'';
-  return`<div class="${cls}">${badge}<span class="sl-n">${p?.prenJ1||''} ${p?.nomJ1||''} / ${p?.prenJ2||''} ${p?.nomJ2||''}</span><span style="font-size:9px;color:var(--tx2);">${p?.poids||''}</span>${extra}</div>`;
+  const editBtn=p?`<button class="btn-edit" onclick="ouvrirEdit(${p.id})" style="font-size:9px;padding:1px 5px;">✏️</button>`:'';
+  return`<div class="${cls}">${badge}<span class="sl-n">${p?.prenJ1||''} ${p?.nomJ1||''} / ${p?.prenJ2||''} ${p?.nomJ2||''}</span><span style="font-size:9px;color:var(--tx2);">${p?.poids||''}</span>${extra}${editBtn}</div>`;
 }
 
 // ── RENDER HORAIRES ───────────────────
@@ -572,173 +618,228 @@ function raz(){
   document.getElementById('sb').textContent='En attente du CSV FFT';
 }
 
+// ══════════════════════════════════════
+// MODAL MODIFIER
+// ══════════════════════════════════════
+function ouvrirEdit(paireId){
+  if(!genData)return;
+  const p=genData.paires.find(x=>x.id===paireId);
+  if(!p)return;
+  editPaireId=paireId;
+  document.getElementById('edit-sub').textContent=`Paire #${paireId} — ${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}${p.ts?' ('+p.ts+')':''}`;
+  document.getElementById('e-pren1').value=p.prenJ1||'';
+  document.getElementById('e-nom1').value=p.nomJ1||'';
+  document.getElementById('e-lic1').value=p.licJ1||'';
+  document.getElementById('e-tel1').value=p.telJ1||'';
+  document.getElementById('e-pren2').value=p.prenJ2||'';
+  document.getElementById('e-nom2').value=p.nomJ2||'';
+  document.getElementById('e-lic2').value=p.licJ2||'';
+  document.getElementById('e-tel2').value=p.telJ2||'';
+  document.getElementById('e-poids').value=p.poids||'';
+  document.getElementById('modal-edit').style.display='flex';
+}
+
+function appliquerModif(mode){
+  if(!genData||!editPaireId)return;
+  const idx=genData.paires.findIndex(x=>x.id===editPaireId);
+  if(idx===-1)return;
+
+  const ancienPoids=genData.paires[idx].poids;
+  const nouveauPoids=parseInt(document.getElementById('e-poids').value)||ancienPoids;
+
+  // Mettre à jour la paire
+  genData.paires[idx]={
+    ...genData.paires[idx],
+    prenJ1:document.getElementById('e-pren1').value,
+    nomJ1:document.getElementById('e-nom1').value,
+    licJ1:document.getElementById('e-lic1').value,
+    telJ1:document.getElementById('e-tel1').value,
+    prenJ2:document.getElementById('e-pren2').value,
+    nomJ2:document.getElementById('e-nom2').value,
+    licJ2:document.getElementById('e-lic2').value,
+    telJ2:document.getElementById('e-tel2').value,
+    poids:nouveauPoids,
+    nc:document.getElementById('e-nom1').value.toUpperCase()+' / '+document.getElementById('e-nom2').value.toUpperCase(),
+    nf:document.getElementById('e-pren1').value+' '+document.getElementById('e-nom1').value+' / '+document.getElementById('e-pren2').value+' '+document.getElementById('e-nom2').value,
+  };
+
+  closeModal('modal-edit');
+
+  if(mode==='recalcul'){
+    // Rebuilder le CSV modifié et regénérer
+    regenererAvecPaires(genData.paires);
+  } else {
+    // Juste mettre à jour l'affichage et les messages
+    // Mettre à jour aussi dans tableau et matchs
+    mettreAJourRefs(editPaireId, genData.paires[idx]);
+    renTab(genData); renH(genData); renMsg(genData);
+    if(genData.alertes) renAlertes(genData.alertes);
+    showToast('✅ Paire modifiée — PDF et convocations mis à jour');
+  }
+}
+
+function mettreAJourRefs(id, nouvellePaire){
+  // Mettre à jour dans tableau
+  genData.tableau.forEach(s=>{
+    if(s[1]&&s[1].id===id) Object.assign(s[1],nouvellePaire);
+  });
+  // Mettre à jour dans matchs
+  genData.matchs.forEach(m=>{
+    if(m.pA&&m.pA.id===id) Object.assign(m.pA,nouvellePaire);
+    if(m.pB&&m.pB.id===id) Object.assign(m.pB,nouvellePaire);
+  });
+  // Mettre à jour dans messages
+  genData.messages.forEach(msg=>{
+    if(msg.paire===nouvellePaire.nf) msg.paire=nouvellePaire.nf;
+  });
+  // Mettre à jour qfMap
+  Object.keys(genData.qfMap).forEach(k=>{
+    if(genData.qfMap[k]&&genData.paires.find(p=>p.id===id)){
+      const p=genData.paires.find(p=>p.id===id);
+      if(genData.qfMap[k].nom===nouvellePaire.nc||genData.qfMap[k].nom===nouvellePaire.nc.replace(' / ','/'))
+        genData.qfMap[k]={nom:nouvellePaire.nc,poids:nouvellePaire.poids,ts:nouvellePaire.ts};
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// MODAL FORFAIT
+// ══════════════════════════════════════
+function ouvrirForfait(paireId){
+  if(!genData)return;
+  const p=genData.paires.find(x=>x.id===paireId);
+  if(!p)return;
+  forfaitPaireId=paireId;
+  document.getElementById('forfait-sub').textContent=`Paire #${paireId}${p.ts?' ('+p.ts+')':''}`;
+  document.getElementById('forfait-paire-info').textContent=`${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2} — Poids: ${p.poids}`;
+  // Vider les champs
+  ['f-pren1','f-nom1','f-lic1','f-tel1','f-pren2','f-nom2','f-lic2','f-tel2','f-poids'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-forfait').style.display='flex';
+}
+
+function appliquerForfait(mode){
+  if(!genData||!forfaitPaireId)return;
+  const idx=genData.paires.findIndex(x=>x.id===forfaitPaireId);
+  if(idx===-1)return;
+
+  const nvPren1=document.getElementById('f-pren1').value.trim();
+  const nvNom1=document.getElementById('f-nom1').value.trim();
+  const nvPoids=parseInt(document.getElementById('f-poids').value)||0;
+  const aNouvellepaire=nvPren1&&nvNom1&&nvPoids;
+
+  if(mode==='supprimer'){
+    if(genData.paires.length<=12){alert('Il faut au moins 12 paires pour supprimer sans remplacer.');return;}
+    genData.paires.splice(idx,1);
+    genData.paires.forEach((p,i)=>{p.id=i+1;p.ts=i<8?'TS'+(i+1):null;});
+    closeModal('modal-forfait');
+    regenererAvecPaires(genData.paires);
+    return;
+  }
+
+  if(!aNouvellepaire){alert('Remplis au moins Prénom J1, Nom J1 et le Poids pour la nouvelle paire.');return;}
+
+  const nouvellePaire={
+    id:forfaitPaireId,
+    prenJ1:nvPren1, nomJ1:nvNom1,
+    licJ1:document.getElementById('f-lic1').value,
+    telJ1:document.getElementById('f-tel1').value,
+    prenJ2:document.getElementById('f-pren2').value,
+    nomJ2:document.getElementById('f-nom2').value,
+    licJ2:document.getElementById('f-lic2').value,
+    telJ2:document.getElementById('f-tel2').value,
+    poids:nvPoids,
+    nc:nvNom1.toUpperCase()+' / '+(document.getElementById('f-nom2').value||'?').toUpperCase(),
+    nf:nvPren1+' '+nvNom1+' / '+(document.getElementById('f-pren2').value||'')+' '+(document.getElementById('f-nom2').value||''),
+  };
+
+  closeModal('modal-forfait');
+
+  if(mode==='recalcul'){
+    genData.paires[idx]=nouvellePaire;
+    regenererAvecPaires(genData.paires);
+  } else {
+    // Même position
+    genData.paires[idx]=nouvellePaire;
+    mettreAJourRefs(forfaitPaireId, nouvellePaire);
+    renTab(genData); renH(genData); renMsg(genData);
+    showToast('✅ Forfait appliqué — même position dans le tableau');
+  }
+}
+
+// ── Régénérer avec les paires modifiées ──
+async function regenererAvecPaires(paires){
+  // Reconstruire un CSV synthétique à partir des paires modifiées
+  // En fait on appelle /generer avec les paires directement via un CSV reconstruit
+  // Mais le plus simple : appeler generer() avec le csvText modifié
+  // → On reconstruit le csvText à partir des paires actuelles
+
+  showToast('⏳ Recalcul du tableau en cours...');
+
+  // Construire un pseudo-CSV FFT
+  let csv='Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids\n';
+  paires.forEach((p,i)=>{
+    csv+=`;P${i+1};;${p.nomJ1};${p.prenJ1};;${p.licJ1||''};;;; ${p.telJ1||''};${p.nomJ2};${p.prenJ2};;${p.licJ2||''};;;; ${p.telJ2||''};${p.poids}\n`;
+  });
+  csvText=csv;
+
+  await generer();
+}
+
+// ── Toast notification ──
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';
+    t.style='position:fixed;bottom:24px;right:24px;background:var(--dk2);border:1px solid var(--bd);color:var(--tx);padding:12px 18px;border-radius:8px;font-family:var(--mo);font-size:12px;z-index:2000;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>t.style.opacity='0',3000);
+}
+
+function closeModal(id){
+  document.getElementById(id).style.display='none';
+}
+
 // ── FORMATS PAR NIVEAU ───────────────
-const FORMATS_NIVEAUX = {
-  P25: {
-    principal: [
-      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⚡ Conseillé'},
-      {val:'D1 : 1 set 9 jeux, avec avantage, jeu decisif a 8/8', label:'D1 — 1 set 9 jeux, avec avantage'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD, jeu decisif a 4/4', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'C1 : 2 sets 4 jeux, avec avantage', label:'C1 — 2 sets 4 jeux, avec avantage'},
-      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡'},
-      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
-    ],
-    classement: [
-      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡ Conseillé'},
-      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
-      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-    ],
-    note: 'P25 — Formats E ou F conseillés'
-  },
-  P100: {
-    principal: [
-      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⚡ Conseillé'},
-      {val:'D1 : 1 set 9 jeux, avec avantage', label:'D1 — 1 set 9 jeux, avec avantage'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'C1 : 2 sets 4 jeux, avec avantage', label:'C1 — 2 sets 4 jeux, avec avantage'},
-      {val:'F : 1 set 4 jeux, NO-AD', label:'F — 1 set 4 jeux, NO-AD ⚡'},
-      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
-    ],
-    classement: [
-      {val:'F : 1 set 4 jeux, NO-AD', label:'F — 1 set 4 jeux, NO-AD ⚡ Conseillé'},
-      {val:'E : Super jeu decisif 10 points', label:'E — Super jeu décisif 10 pts ⚡'},
-      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-    ],
-    note: 'P100 — Formats E ou F conseillés'
-  },
-  P250: {
-    principal: [
-      {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8', label:'D2 — 1 set 9 jeux, NO-AD ⭐ Recommandé'},
-      {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts', label:'B2 — 2 sets 6 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-    ],
-    classement: [
-      {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3', label:'F — 1 set 4 jeux, NO-AD ⚡ Recommandé classement'},
-      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-    ],
-    note: 'P250 — Formats A2/B2/C2/D2 uniquement (pas E ni F pour le tableau)'
-  },
-  P500: {
-    principal: [
-      {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts', label:'B2 — 2 sets 6 jeux, NO-AD ⭐ Recommandé'},
-      {val:'B1 : 2 sets 6 jeux, avec avantage', label:'B1 — 2 sets 6 jeux, avec avantage'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD (Finale obligatoire)', label:'A2 — 3 sets 6 jeux, NO-AD'},
-      {val:'A1 : 3 sets 6 jeux, avec avantage (Finale)', label:'A1 — 3 sets 6 jeux, avec avantage'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
-    ],
-    classement: [
-      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-    ],
-    note: 'P500 — Finale obligatoire en A1/A2/B1/B2. Pas de format E ni F.'
-  },
-  P1000: {
-    principal: [
-      {val:'A2 : 3 sets 6 jeux, NO-AD (oblig. a partir 1/8)', label:'A2 — 3 sets 6 jeux, NO-AD ⭐ Obligatoire ≥1/8'},
-      {val:'A1 : 3 sets 6 jeux, avec avantage', label:'A1 — 3 sets 6 jeux, avec avantage'},
-      {val:'B2 : 2 sets 6 jeux, NO-AD (qualifs et ≤1/16)', label:'B2 — 2 sets 6 jeux, NO-AD (qualifs/1/16)'},
-      {val:'B1 : 2 sets 6 jeux, avec avantage (qualifs)', label:'B1 — 2 sets 6 jeux, avec avantage (qualifs)'},
-    ],
-    classement: [
-      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'D2 : 1 set 9 jeux, NO-AD', label:'D2 — 1 set 9 jeux, NO-AD'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-    ],
-    note: 'P1000 — A1 ou A2 obligatoire à partir des 1/8 de finale. Pas de format E ni F.'
-  },
-  P1500: {
-    principal: [
-      {val:'A1 : 3 sets 6 jeux, avec avantage (oblig. a partir 1/8)', label:'A1 — 3 sets 6 jeux, avec avantage ⭐ Obligatoire ≥1/8'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-      {val:'B1 : 2 sets 6 jeux, avec avantage (1/16 et qualifs)', label:'B1 — 2 sets 6 jeux, avec avantage (qualifs)'},
-    ],
-    classement: [
-      {val:'B2 : 2 sets 6 jeux, NO-AD', label:'B2 — 2 sets 6 jeux, NO-AD'},
-      {val:'C2 : 2 sets 4 jeux, NO-AD', label:'C2 — 2 sets 4 jeux, NO-AD'},
-      {val:'A2 : 3 sets 6 jeux, NO-AD', label:'A2 — 3 sets 6 jeux, NO-AD'},
-    ],
-    note: 'P1500 — A1 obligatoire à partir des 1/8. Qualifs en B1.'
-  },
-  P2000: {
-    principal: [
-      {val:'A1 : 3 sets 6 jeux, avec avantage', label:'A1 — 3 sets 6 jeux, avec avantage ⭐ Obligatoire'},
-    ],
-    classement: [
-      {val:'B1 : 2 sets 6 jeux, avec avantage', label:'B1 — 2 sets 6 jeux, avec avantage ⭐ Obligatoire'},
-    ],
-    note: 'P2000 — Format A1 obligatoire tableau, B1 obligatoire classement.'
-  },
+const FORMATS_NIVEAUX={
+  P25:{principal:[{val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux, NO-AD ⚡'},{val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux ⚡'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],classement:[{val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F ⚡ Conseillé'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],note:'P25 — Formats E ou F conseillés'},
+  P100:{principal:[{val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux, NO-AD ⚡'},{val:'F : 1 set 4 jeux, NO-AD',label:'F ⚡'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],classement:[{val:'F : 1 set 4 jeux, NO-AD',label:'F ⚡ Conseillé'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'},{val:'D2 : 1 set 9 jeux, NO-AD',label:'D2'}],note:'P100 — Formats E ou F conseillés'},
+  P250:{principal:[{val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux, NO-AD ⭐ Recommandé'},{val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux, NO-AD'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux, NO-AD'},{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux, NO-AD'}],classement:[{val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux ⚡ Recommandé'},{val:'D2 : 1 set 9 jeux, NO-AD',label:'D2'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2'},{val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2'},{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2'}],note:'P250 — Formats A2/B2/C2/D2 uniquement (pas E ni F pour le tableau)'},
+  P500:{principal:[{val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 ⭐ Recommandé'},{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2'},{val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2'}],classement:[{val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2'},{val:'D2 : 1 set 9 jeux, NO-AD',label:'D2'}],note:'P500 — Finale obligatoire en A1/A2/B1/B2.'},
+  P1000:{principal:[{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 ⭐ Obligatoire ≥1/8'},{val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1'},{val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 (qualifs)'}],classement:[{val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2'},{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2'}],note:'P1000 — A1/A2 obligatoire ≥1/8.'},
+  P1500:{principal:[{val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 ⭐ Obligatoire ≥1/8'},{val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2'}],classement:[{val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2'},{val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2'}],note:'P1500 — A1 obligatoire ≥1/8.'},
+  P2000:{principal:[{val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 ⭐ Obligatoire'}],classement:[{val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 ⭐ Obligatoire'}],note:'P2000 — A1 tableau, B1 classement.'},
 };
 
 function onNiveauChange(){
-  const niveau = document.getElementById('niveau').value;
-  const fmts = FORMATS_NIVEAUX[niveau];
-  if(!fmts) return;
-
-  // Mettre à jour le nom
-  const nt = document.getElementById('nt');
-  if(nt.value.startsWith('P')){
-    nt.value = niveau + ' Double Messieurs Senior';
-  }
-
-  // Mettre à jour format principal
-  const fg = document.getElementById('fg');
-  fg.innerHTML = fmts.principal.map((f,i)=>
-    `<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`
-  ).join('');
-
-  // Mettre à jour format classement
-  const fgc = document.getElementById('fg-cls');
-  fgc.innerHTML = fmts.classement.map((f,i)=>
-    `<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`
-  ).join('');
-
-  // Afficher une note
+  const niveau=document.getElementById('niveau').value;
+  const fmts=FORMATS_NIVEAUX[niveau];
+  if(!fmts)return;
+  const nt=document.getElementById('nt');
+  if(nt.value.startsWith('P')) nt.value=niveau+' Double Messieurs Senior';
+  document.getElementById('fg').innerHTML=fmts.principal.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
+  document.getElementById('fg-cls').innerHTML=fmts.classement.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
   if(fmts.note){
-    let noteEl = document.getElementById('niveau-note');
-    if(!noteEl){
-      noteEl = document.createElement('div');
-      noteEl.id = 'niveau-note';
-      noteEl.style = 'font-size:10px;color:var(--am);font-family:var(--mo);margin-top:4px;padding:6px 10px;background:var(--dk3);border-radius:6px;border-left:3px solid var(--am);';
-      document.getElementById('niveau').parentElement.appendChild(noteEl);
-    }
-    noteEl.textContent = '⚠️ ' + fmts.note;
+    let noteEl=document.getElementById('niveau-note');
+    if(!noteEl){noteEl=document.createElement('div');noteEl.id='niveau-note';noteEl.style='font-size:10px;color:var(--am);font-family:var(--mo);margin-top:4px;padding:6px 10px;background:var(--dk3);border-radius:6px;border-left:3px solid var(--am);';document.getElementById('niveau').parentElement.appendChild(noteEl);}
+    noteEl.textContent='⚠️ '+fmts.note;
   }
 }
 
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
-// Initialiser avec P250
 onNiveauChange();
 
-// ── THEME ─────────────────────────────
 function toggleTheme(){
   const root=document.documentElement;
   const btn=document.getElementById('theme-btn');
-  if(root.classList.contains('light')){
-    root.classList.remove('light');
-    btn.textContent='☀️ Mode clair';
-    localStorage.setItem('theme','dark');
-  } else {
-    root.classList.add('light');
-    btn.textContent='🌙 Mode sombre';
-    localStorage.setItem('theme','light');
-  }
+  if(root.classList.contains('light')){root.classList.remove('light');btn.textContent='☀️ Mode clair';localStorage.setItem('theme','dark');}
+  else{root.classList.add('light');btn.textContent='🌙 Mode sombre';localStorage.setItem('theme','light');}
 }
-// Restaurer le thème sauvegardé
-if(localStorage.getItem('theme')==='light'){
-  document.documentElement.classList.add('light');
-  document.getElementById('theme-btn').textContent='🌙 Mode sombre';
-}
+if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
 </script>
 </body>
 </html>
