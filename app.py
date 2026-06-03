@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-JAP Tool — Application web Padel FFT
-Auteur : Arena18
-Déployé sur : jap.myconvi.fr
+JAP Tool v2 — Application web Padel FFT
+Arena18 — jap.myconvi.fr
 """
 from flask import Flask, request, jsonify, render_template, send_file
 import io, json, base64, random, os
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
 
 app = Flask(__name__)
 
@@ -17,7 +17,6 @@ PDF_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'tableau16_b64.
 with open(PDF_B64_PATH) as f:
     PDF_VIERGE_B64 = f.read().strip()
 
-# ── Coordonnées exactes tableau FFT ──────
 W_PDF, H_PDF = 595.2, 841.8
 Y_1T = [735.4,694.8,654.3,613.7,573.2,532.6,492.0,451.4,
         410.9,370.3,329.8,289.2,248.6,208.0,167.5,126.9]
@@ -29,7 +28,6 @@ TS_COLORS = {
     'TS7':(0.60,0.15,0.10),'TS8':(0.60,0.15,0.10),
 }
 
-# ── Utilitaires ──────────────────────────
 def shuffle(arr):
     a = arr[:]
     for i in range(len(a)-1, 0, -1):
@@ -45,7 +43,16 @@ def add_min(hm, m):
 def sub_min(hm, m):
     h, mn = map(int, hm.split(':'))
     t = h*60 + mn - m
+    if t < 0: t = 0
     return f"{t//60:02d}:{t%60:02d}"
+
+def hm_to_min(hm):
+    h, mn = map(int, hm.split(':'))
+    return h*60 + mn
+
+def min_to_hm(m):
+    if m < 0: m = 0
+    return f"{m//60:02d}:{m%60:02d}"
 
 # ── Parsing CSV FFT ──────────────────────
 def parse_csv(text):
@@ -77,43 +84,110 @@ def parse_csv(text):
         p['ts']  = 'TS' + str(i+1) if i < 8 else None
     return paires
 
-# ── Construction du tableau FFT ──────────
-def build_tableau(paires):
+# ── Construction tableau FFT ─────────────
+def build_tableau(paires, contraintes=None):
+    """
+    contraintes : dict {paire_id: 'HH:MM'} — heure min de disponibilité
+    """
     ts1, ts2   = paires[0], paires[1]
     ts34       = shuffle([paires[2], paires[3]])
     ts58       = shuffle([paires[4], paires[5], paires[6], paires[7]])
     autres     = shuffle(paires[8:])
+
+    # Appliquer contraintes horaires sur les équipes sans BYE
+    # Les paires avec contrainte tardive vont en matchs plus tardifs
+    if contraintes:
+        def get_contrainte(p):
+            return hm_to_min(contraintes.get(str(p['id']), '00:00'))
+        # Trier ts58 et autres selon contraintes (les plus tardives en dernier)
+        ts58  = sorted(ts58,  key=get_contrainte)
+        autres = sorted(autres, key=get_contrainte)
+
     T = [
-        {'t':'bye','p':ts2},       # 0  BYE TS2 → QF
-        {'t':'emp'},               # 1
-        {'t':'eq', 'p':autres[0]}, # 2  ─┐ Match 1
-        {'t':'ts', 'p':ts58[0]},   # 3  ─┘
-        {'t':'ts', 'p':ts58[1]},   # 4  ─┐ Match 2
-        {'t':'eq', 'p':autres[1]}, # 5  ─┘
-        {'t':'bye','p':ts34[0]},   # 6  BYE TS3/4 → QF
-        {'t':'emp'},               # 7
-        {'t':'bye','p':ts34[1]},   # 8  BYE TS4/3 → QF
-        {'t':'emp'},               # 9
-        {'t':'ts', 'p':ts58[2]},   # 10 ─┐ Match 3
-        {'t':'eq', 'p':autres[2]}, # 11 ─┘
-        {'t':'eq', 'p':autres[3]}, # 12 ─┐ Match 4
-        {'t':'ts', 'p':ts58[3]},   # 13 ─┘
-        {'t':'bye','p':ts1},       # 14 BYE TS1 → QF
-        {'t':'emp'},               # 15
+        {'t':'bye','p':ts2},        # 0
+        {'t':'emp'},                 # 1
+        {'t':'eq', 'p':autres[0]},  # 2  ─┐ M1
+        {'t':'ts', 'p':ts58[0]},    # 3  ─┘
+        {'t':'ts', 'p':ts58[1]},    # 4  ─┐ M2
+        {'t':'eq', 'p':autres[1]},  # 5  ─┘
+        {'t':'bye','p':ts34[0]},    # 6
+        {'t':'emp'},                 # 7
+        {'t':'bye','p':ts34[1]},    # 8
+        {'t':'emp'},                 # 9
+        {'t':'ts', 'p':ts58[2]},    # 10 ─┐ M3
+        {'t':'eq', 'p':autres[2]},  # 11 ─┘
+        {'t':'eq', 'p':autres[3]},  # 12 ─┐ M4
+        {'t':'ts', 'p':ts58[3]},    # 13 ─┘
+        {'t':'bye','p':ts1},        # 14
+        {'t':'emp'},                 # 15
     ]
     return T, ts34, ts58
 
-# ── Calcul horaires TMC ──────────────────
-def calc_horaires(heure_debut, nb_pistes, duree):
-    vagues = [[1,2],[3,4],[5,6],[7,8,9,10],[11,12],[13,14],[15,16],[17,18,19],[20]]
+# ── Calcul horaires avec contraintes ─────
+def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes=None, T=None):
+    """
+    Calcule les horaires en tenant compte :
+    - de deux durées différentes (principal vs classement)
+    - des contraintes horaires par paire
+    """
+    # Matchs principaux (tableau) vs classement
+    matchs_principal   = {1,2,3,4,7,8,9,10,15,16,20}
+    matchs_classement  = {5,6,11,12,13,14,17,18,19}
+
+    def duree(num):
+        return duree_principal if num in matchs_principal else duree_classement
+
+    # Structure des vagues (2 matchs simultanés max)
+    vagues = [
+        [1,2],       # 1/8 vague 1
+        [3,4],       # 1/8 vague 2
+        [5,6],       # classement 9-12
+        [7,8],       # QF vague 1
+        [9,10],      # QF vague 2
+        [11,12],     # classement suite
+        [13,14],     # classement 5-8
+        [15,16],     # SF
+        [17,18],     # classements
+        [19],        # 3/4
+        [20],        # finale
+    ]
+
     horaires = {}
-    h = heure_debut
+    h_cur = heure_debut
+
+    # Mapping match → paires impliquées (pour contraintes)
+    match_paires = {}
+    if T:
+        match_paires[1] = [T[2]['p'], T[3]['p']]
+        match_paires[2] = [T[4]['p'], T[5]['p']]
+        match_paires[3] = [T[10]['p'], T[11]['p']]
+        match_paires[4] = [T[12]['p'], T[13]['p']]
+
     for vague in vagues:
-        nb_v = (len(vague) + nb_pistes - 1) // nb_pistes
+        # Calculer l'heure de début de cette vague
+        # en tenant compte des contraintes des paires impliquées
+        h_vague = hm_to_min(h_cur)
+
+        if contraintes and T:
+            for num in vague:
+                if num in match_paires:
+                    for p in match_paires[num]:
+                        if str(p['id']) in contraintes:
+                            c_min = hm_to_min(contraintes[str(p['id'])])
+                            if c_min > h_vague:
+                                h_vague = c_min
+
+        h_vague_str = min_to_hm(h_vague)
+
         for i, num in enumerate(vague):
-            offset = (i // nb_pistes) * duree
-            horaires[num] = (add_min(h, offset), (i % nb_pistes) + 1)
-        h = add_min(h, nb_v * duree)
+            piste = (i % nb_pistes) + 1
+            horaires[num] = (h_vague_str, piste)
+
+        # Avancer au prochain créneau
+        dur_max = max(duree(n) for n in vague)
+        nb_v = (len(vague) + nb_pistes - 1) // nb_pistes
+        h_cur = min_to_hm(h_vague + nb_v * dur_max)
+
     return horaires
 
 # ── Génération PDF tableau officiel FFT ──
@@ -171,7 +245,7 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
         write_slot(c, 132, y, qd['nom'], qd['poids'], qd['ts'], False, max_x=244)
     c.setFont("Helvetica-Oblique", 5.8)
     c.setFillColorRGB(0.4, 0.4, 0.4)
-    c.drawString(14, 112, "TS1,TS2,TS3,TS4 — BYE → QF direct  |  TS1 en bas / TS2 en haut (FFT p.40)")
+    c.drawString(14, 112, "TS1,TS2,TS3,TS4 — BYE → QF  |  TS1 en bas / TS2 en haut (FFT p.40)")
     c.setFillColorRGB(0, 0, 0)
     c.save()
     packet.seek(0)
@@ -187,135 +261,193 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
     return out.getvalue()
 
 # ── Génération PDF feuille de route ──────
+# Fidèle au modèle Arena18 officiel
 def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
-    W, H = A4
+    W, H = A4  # 595 x 842
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
 
-    # Header
-    c.setFillColorRGB(0,0,0)
-    c.setFont("Helvetica-Bold", 16); c.drawString(40, H-42, "Arena18")
-    c.setFont("Helvetica", 8); c.setFillColorRGB(0.5,0.5,0.5)
-    c.drawString(40, H-53, "VOUS DE JOUER")
-    c.setFillColorRGB(0,0,0)
-    c.setFont("Helvetica-Bold", 20); c.drawCentredString(W/2, H-38, "TOURNOI P250")
-    c.setFont("Helvetica", 10); c.drawCentredString(W/2, H-52, f"by {sponsor}")
-    c.setFont("Helvetica-Bold", 13); c.drawRightString(W-40, H-38, "12 équipes")
-    c.setFont("Helvetica", 8); c.drawRightString(W-40, H-50, f"Format {format_jeu}")
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(40, H-72, f"DATE : {date_str.upper()}")
-    c.setLineWidth(2); c.line(40, H-79, W-40, H-79); c.setLineWidth(0.5)
+    # ── HEADER ──────────────────────────
+    # Bande blanche de fond
+    c.setFillColorRGB(1, 1, 1)
+    c.rect(0, H-95, W, 95, fill=1, stroke=0)
 
-    # En-têtes
-    yh = H - 92
-    c.setFillColorRGB(0,0,0); c.rect(40, yh-2, W-80, 13, fill=1, stroke=0)
-    c.setFillColorRGB(1,1,1); c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(57, yh+3, "M")
-    c.drawString(78, yh+3, "NOM DES ÉQUIPES")
-    c.drawCentredString(375, yh+3, "HEURE")
-    c.drawCentredString(425, yh+3, "ORDRE")
-    c.drawCentredString(505, yh+3, "TERRAIN")
-    c.setFillColorRGB(0,0,0)
+    # Logo Arena18
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 20)
+    c.drawString(22, H-35, "Arena18")
+    c.setFont("Helvetica", 7)
+    c.setFillColorRGB(0.4, 0.4, 0.4)
+    c.drawString(22, H-46, "VOUS DE JOUER")
 
-    y = yh - 15
-    row_h = 19
-    current_sec = None
+    # TOURNOI P250
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(W/2, H-25, "TOURNOI")
+    c.setFont("Helvetica-Bold", 28)
+    c.drawCentredString(W/2, H-55, "P250")
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(W/2, H-68, f"by {sponsor}")
 
-    sec_colors = {
-        '1/8 de finale':        (0.93,0.93,0.93),
-        'Classement 9 à 12':    (1.0, 0.96,0.88),
-        'Quarts de finale':     (0.88,0.95,0.88),
-        'Classement suite':     (1.0, 0.96,0.88),
-        'Classement 5 à 8':     (0.93,0.90,1.0),
-        'Demi-finales':         (0.88,0.95,0.95),
-        'Classements finaux':   (0.93,0.93,0.93),
-        'Finale':               (0.10,0.10,0.10),
-    }
+    # 12 équipes + format
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(W-22, H-28, "12 équipes")
+    c.setFont("Helvetica-Bold", 8)
+    c.drawRightString(W-22, H-42, "Format D2:")
+    c.setFont("Helvetica", 7.5)
+    c.drawRightString(W-22, H-53, format_jeu[:40])
+
+    # DATE
+    c.setFont("Helvetica-Bold", 13)
+    c.setFillColorRGB(0, 0, 0)
+    c.drawString(22, H-82, f"DATE :  {date_str.upper() if date_str else ''}")
+
+    # ── LIGNE SÉPARATRICE ───────────────
+    c.setLineWidth(1.5)
+    c.setStrokeColorRGB(0, 0, 0)
+    c.line(22, H-92, W-22, H-92)
+    c.setLineWidth(0.5)
+
+    # ── EN-TÊTES COLONNES ───────────────
+    y_hdr = H - 104
+    # Fond noir header
+    c.setFillColorRGB(0, 0, 0)
+    c.rect(22, y_hdr - 2, W-44, 14, fill=1, stroke=0)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawCentredString(40, y_hdr + 3, "MATCHS")
+    c.drawCentredString(W/2 - 30, y_hdr + 3, "NOM DES ÉQUIPES")
+    c.drawCentredString(W - 120, y_hdr + 3, "ORDRE\nMATCHS")
+    c.drawCentredString(W - 50, y_hdr + 3, "ORDRE A SUIVRE")
+    c.setFillColorRGB(0, 0, 0)
+
+    # ── LIGNES MATCHS ───────────────────
+    y = y_hdr - 16
+    row_h = 18.5
+    BALLES_MATCHS = {1, 2, 7, 8, 15, 16, 20}
 
     for m in matchs:
-        sec = m.get('section')
-        if sec and sec != current_sec:
-            current_sec = sec
-            bg = sec_colors.get(sec, (0.9,0.9,0.9))
+        if y < 55:  # protection bas de page
+            break
+
+        # Fond alterné
+        if m['num'] == 20:
+            c.setFillColorRGB(0, 0, 0)
+        else:
+            bg = (1,1,1) if m['num'] % 2 == 1 else (0.95, 0.95, 0.95)
             c.setFillColorRGB(*bg)
-            c.rect(40, y-1, W-80, 11, fill=1, stroke=0)
-            fc = (1,1,1) if sec == 'Finale' else (0.3,0.3,0.3)
-            c.setFillColorRGB(*fc)
-            c.setFont("Helvetica-Bold", 7)
-            c.drawString(44, y+3, sec.upper())
-            c.setFillColorRGB(0,0,0)
-            y -= 11
+        c.rect(22, y - 3, W-44, row_h, fill=1, stroke=0)
 
-        bg_row = (1,1,1) if m['num']%2==1 else (0.97,0.97,0.97)
-        if sec == 'Finale': bg_row = (0.10,0.10,0.10)
-        c.setFillColorRGB(*bg_row)
-        c.rect(40, y-3, W-80, row_h, fill=1, stroke=0)
+        # Bordure ligne
+        c.setStrokeColorRGB(0.8, 0.8, 0.8)
+        c.line(22, y - 3, W-22, y - 3)
+        c.setStrokeColorRGB(0, 0, 0)
 
-        tc = (1,1,1) if sec=='Finale' else (0,0,0)
+        tc = (1,1,1) if m['num'] == 20 else (0,0,0)
         c.setFillColorRGB(*tc)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(57, y+4, str(m['num']))
 
-        # Balle jaune
-        if m.get('balles'):
+        # Numéro match
+        c.setFont("Helvetica-Bold", 10)
+        c.drawCentredString(35, y + 4, str(m['num']))
+
+        # Icône balle jaune
+        if m['num'] in BALLES_MATCHS:
             c.setFillColorRGB(0.78, 0.70, 0.0)
-            c.circle(71, y+6, 5, fill=1, stroke=0)
+            c.circle(48, y + 6, 5, fill=1, stroke=0)
+            # Texte "Balles" en blanc
+            c.setFillColorRGB(1, 1, 1)
+            c.setFont("Helvetica-Bold", 3.5)
+            c.drawCentredString(48, y + 5.5, "Balles")
+            c.drawCentredString(48, y + 3, "Neuves")
             c.setFillColorRGB(*tc)
 
-        # Équipes
-        c.setFont("Helvetica", 8)
+        # Nom des équipes
+        x_eq = 58
         if m.get('pA') and m.get('pB'):
             pa, pb = m['pA'], m['pB']
             c.setFont("Helvetica-Bold", 8)
-            c.drawString(80, y+9, f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}")
+            nom_a = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
+            nom_b = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
+            c.drawString(x_eq, y + 9, nom_a)
             c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(80, y+1, "VS")
+            c.drawString(x_eq, y + 1, "VS")
             c.setFont("Helvetica-Bold", 8); c.setFillColorRGB(*tc)
-            c.drawString(93, y+1, f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}")
+            c.drawString(x_eq + 12, y + 1, nom_b)
         elif m.get('pB') and m.get('libA'):
             pb = m['pB']
-            c.setFillColorRGB(0.4,0.4,0.4) if sec!='Finale' else c.setFillColorRGB(0.7,0.7,0.7)
-            c.setFont("Helvetica", 7.5)
-            c.drawString(80, y+9, m['libA'])
-            c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(80, y+2, "VS")
             c.setFont("Helvetica-Bold", 8)
-            c.setFillColorRGB(0.7,0.1,0.1) if sec!='Finale' else c.setFillColorRGB(1,0.5,0.5)
-            c.drawString(93, y+2, f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})")
-        elif sec == 'Finale':
-            c.setFont("Helvetica-Bold", 12); c.setFillColorRGB(1,1,1)
-            c.drawCentredString(W/2-40, y+5, "★   FINALE   ★")
-        else:
-            c.setFillColorRGB(0.35,0.35,0.35)
-            c.setFont("Helvetica", 7.5)
-            c.drawString(80, y+9, m.get('libA',''))
+            c.drawString(x_eq, y + 9, m['libA'])
             c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(80, y+2, "VS")
-            c.setFont("Helvetica", 7.5); c.setFillColorRGB(0.35,0.35,0.35)
-            c.drawString(93, y+2, m.get('libB',''))
-
-        c.setFillColorRGB(*tc)
-        h_m, piste = m.get('heure','?'), m.get('piste','?')
-        c.setFont("Helvetica-Bold", 9); c.drawCentredString(375, y+5, str(h_m))
-        c.setFont("Helvetica-Bold", 8); c.drawCentredString(425, y+5, m['ordre'])
-        c.setFont("Helvetica", 7)
-        if m['num'] <= 2:
-            c.setFont("Helvetica-Bold", 7); c.setFillColorRGB(0,0.3,0.7)
-            c.drawCentredString(505, y+5, m.get('terrain','')[:22])
+            c.drawString(x_eq, y + 1, "VS")
+            c.setFillColorRGB(0.7, 0.1, 0.1) if m['num'] != 20 else c.setFillColorRGB(1,0.5,0.5)
+            c.setFont("Helvetica-Bold", 8)
+            ts_nom = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
+            c.drawString(x_eq + 12, y + 1, ts_nom)
             c.setFillColorRGB(*tc)
+        elif m['num'] == 20:
+            c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 14)
+            c.setFillColorRGB(1, 1, 1)
+            c.drawCentredString(W/2 - 40, y + 5, "FINALE !")
+            c.setFillColorRGB(1,1,1)
         else:
-            c.drawCentredString(505, y+5, f"Terrain {piste}")
+            c.setFont("Helvetica-Bold", 8)
+            la = m.get('libA', '')
+            lb = m.get('libB', '')
+            if la and lb:
+                c.drawString(x_eq, y + 5, f"{la}   VS   {lb}")
+            else:
+                c.drawString(x_eq, y + 5, la or lb or '')
 
-        c.setStrokeColorRGB(0.85,0.85,0.85)
-        c.line(40, y-3, W-40, y-3)
-        c.setStrokeColorRGB(0,0,0)
+        # Ligne diagonale score (sauf finale)
+        if m['num'] != 20:
+            c.setStrokeColorRGB(0.3, 0.3, 0.3)
+            c.setLineWidth(0.8)
+            x_slash = W - 155
+            c.line(x_slash, y - 2, x_slash + 30, y + row_h - 2)
+            c.setLineWidth(0.5)
+            c.setStrokeColorRGB(0, 0, 0)
+
+        # Ordre match
+        c.setFillColorRGB(*tc)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(W - 118, y + 5, m['ordre'])
+
+        # Ordre à suivre (terrain)
+        c.setFont("Helvetica", 7)
+        terrain_txt = m.get('terrain_str', '1ER TERRAIN\nQUI SE LIBÈRE')
+        lines_t = terrain_txt.split('\n')
+        if len(lines_t) == 2:
+            c.drawCentredString(W - 48, y + 8, lines_t[0])
+            c.drawCentredString(W - 48, y + 1, lines_t[1])
+        else:
+            c.drawCentredString(W - 48, y + 5, terrain_txt)
+
+        # Séparateurs verticaux
+        c.setStrokeColorRGB(0.7, 0.7, 0.7)
+        c.line(55, y-3, 55, y+row_h-3)      # après numéro
+        c.line(W-135, y-3, W-135, y+row_h-3) # avant ordre match
+        c.line(W-80, y-3, W-80, y+row_h-3)   # avant terrain
+        c.setStrokeColorRGB(0, 0, 0)
+
         y -= row_h
 
-    # Footer
-    c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-    c.line(40, y-8, W-40, y-8)
-    for i, l in enumerate(["CONVI GROUPE","FFT PADEL", sponsor,"DÉCATHLON"]):
-        c.drawString(40+i*120, y-18, l)
+    # ── BORDURE TABLEAU ─────────────────
+    c.setLineWidth(1)
+    c.rect(22, y + row_h - 3, W-44, y_hdr - 2 - (y + row_h - 3) + 16, fill=0, stroke=1)
+
+    # ── FOOTER LOGOS ────────────────────
+    y_footer = 22
+    c.setLineWidth(0.5)
+    c.line(22, y_footer + 14, W-22, y_footer + 14)
+    logos = ["CONVI GROUPE", "FFT PADEL", sponsor.upper(), "DÉCATHLON"]
+    for i, logo in enumerate(logos):
+        x_logo = 30 + i * 130
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(x_logo, y_footer + 4, logo)
+        c.setLineWidth(0.5)
+        c.rect(x_logo - 3, y_footer, 100, 12, fill=0, stroke=1)
 
     c.save()
     packet.seek(0)
@@ -329,16 +461,17 @@ def index():
 @app.route('/generer', methods=['POST'])
 def generer():
     data = request.get_json()
-    csv_text    = data['csv']
-    heure_debut = data.get('heureDebut', '09:00')
-    nb_pistes   = int(data.get('nbPistes', 2))
-    duree       = int(data.get('dureeMatch', 45))
-    nom_tournoi = data.get('nomTournoi', 'P250 Double Messieurs Sénior')
-    date_str    = data.get('dateStr', '')
-    sponsor     = data.get('sponsor', 'CUPRA LANESTER')
-    format_jeu  = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
+    csv_text         = data['csv']
+    heure_debut      = data.get('heureDebut', '09:00')
+    nb_pistes        = int(data.get('nbPistes', 2))
+    duree_principal  = int(data.get('dureeMatchPrincipal', 45))
+    duree_classement = int(data.get('dureeMatchClassement', 45))
+    nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Sénior')
+    date_str         = data.get('dateStr', '')
+    sponsor          = data.get('sponsor', 'CUPRA LANESTER')
+    format_jeu       = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
+    contraintes      = data.get('contraintes', {})  # {paire_id: 'HH:MM'}
 
-    # Parser CSV
     try:
         paires = parse_csv(csv_text)
     except Exception as e:
@@ -356,8 +489,8 @@ def generer():
             if lu in lm: doublons.append(l)
             else: lm[lu] = True
 
-    # Tableau FFT
-    T, ts34, ts58 = build_tableau(paires)
+    T, ts34, ts58 = build_tableau(paires, contraintes)
+
     qf_map = {
         '0': {'nom':T[0]['p']['nc'],'poids':T[0]['p']['poids'],'ts':T[0]['p']['ts']},
         '3': {'nom':T[6]['p']['nc'],'poids':T[6]['p']['poids'],'ts':T[6]['p']['ts']},
@@ -365,10 +498,8 @@ def generer():
         '7': {'nom':T[14]['p']['nc'],'poids':T[14]['p']['poids'],'ts':T[14]['p']['ts']},
     }
 
-    # Horaires
-    horaires = calc_horaires(heure_debut, nb_pistes, duree)
+    horaires = calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes, T)
 
-    # Structure 20 matchs
     m1a,m1b = T[2]['p'],T[3]['p']
     m2a,m2b = T[4]['p'],T[5]['p']
     m3a,m3b = T[10]['p'],T[11]['p']
@@ -376,29 +507,30 @@ def generer():
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
     matchs = [
-        {'num':1, 'ordre':'1/8',    'pA':m1a,'pB':m1b,  'terrain':'TERRAIN DÉCATHLON',           'section':'1/8 de finale'},
-        {'num':2, 'ordre':'1/8',    'pA':m2a,'pB':m2b,  'terrain':'TERRAIN CUPRA',               'section':None},
-        {'num':3, 'ordre':'1/8',    'pA':m3a,'pB':m3b,  'terrain':'1ER TERRAIN QUI SE LIBÈRE',   'section':None},
-        {'num':4, 'ordre':'1/8',    'pA':m4a,'pB':m4b,  'terrain':'2ÈME TERRAIN QUI SE LIBÈRE',  'section':None},
-        {'num':5, 'ordre':'9à12',   'libA':'PERDANT M1','libB':'PERDANT M2','terrain':'1ER TERRAIN', 'section':'Classement 9 à 12'},
-        {'num':6, 'ordre':'9à12',   'libA':'PERDANT M3','libB':'PERDANT M4','terrain':'2ÈME TERRAIN','section':None},
-        {'num':7, 'ordre':'1/4',    'libA':'GAGNANT M1','pB':qf0,'terrain':'1ER TERRAIN', 'section':'Quarts de finale'},
-        {'num':8, 'ordre':'1/4',    'libA':'GAGNANT M2','pB':qf3,'terrain':'2ÈME TERRAIN','section':None},
-        {'num':9, 'ordre':'1/4',    'libA':'GAGNANT M3','pB':qf4,'terrain':'1ER TERRAIN', 'section':None},
-        {'num':10,'ordre':'1/4',    'libA':'GAGNANT M4','pB':qf7,'terrain':'2ÈME TERRAIN','section':None},
-        {'num':11,'ordre':'11à12',  'libA':'PERDANT M5','libB':'PERDANT M6','terrain':'1ER TERRAIN','section':'Classement suite'},
-        {'num':12,'ordre':'9à10',   'libA':'GAGNANT M5','libB':'GAGNANT M6','terrain':'2ÈME TERRAIN','section':None},
-        {'num':13,'ordre':'5à8',    'libA':'PERDANT M7','libB':'PERDANT M8','terrain':'1ER TERRAIN', 'section':'Classement 5 à 8'},
-        {'num':14,'ordre':'5à8',    'libA':'PERDANT M9','libB':'PERDANT M10','terrain':'2ÈME TERRAIN','section':None},
-        {'num':15,'ordre':'1/2',    'libA':'GAGNANT M7','libB':'GAGNANT M8','terrain':'1ER TERRAIN', 'section':'Demi-finales','balles':True},
-        {'num':16,'ordre':'1/2',    'libA':'GAGNANT M9','libB':'GAGNANT M10','terrain':'2ÈME TERRAIN','section':None,'balles':True},
-        {'num':17,'ordre':'7/8',    'libA':'PERDANT M13','libB':'PERDANT M14','terrain':'1ER TERRAIN','section':'Classements finaux'},
-        {'num':18,'ordre':'5/6',    'libA':'GAGNANT M13','libB':'GAGNANT M14','terrain':'2ÈME TERRAIN','section':None},
-        {'num':19,'ordre':'3/4',    'libA':'PERDANT M15','libB':'PERDANT M16','terrain':'1ER TERRAIN','section':None},
-        {'num':20,'ordre':'FINALE', 'libA':'GAGNANT M15','libB':'GAGNANT M16','terrain':'2ÈME TERRAIN','section':'Finale','balles':True},
+        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b,  'terrain_str':'TERRAIN\nDÉCATHLON'},
+        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b,  'terrain_str':'TERRAIN\nCUPRA'},
+        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b,  'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b,  'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':5,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':6,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':11, 'ordre':'11 à 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':12, 'ordre':'9 à 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':13, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':14, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
+        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
     ]
+
     for m in matchs:
-        h_m, piste = horaires.get(m['num'], ('?','?'))
+        h_m, piste = horaires.get(m['num'], ('?', '?'))
         m['heure'] = h_m
         m['piste'] = piste
 
@@ -426,11 +558,16 @@ def generer():
         h_conv = sub_min(h_m, 15) if h_m != '?' else '?'
         adv_str = f"{adv['prenJ1']} {adv['nomJ1']} / {adv['prenJ2']} {adv['nomJ2']}" if adv else ''
 
+        contrainte_info = ''
+        if str(p['id']) in contraintes:
+            contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
+
         for j in [{'pr':p['prenJ1'],'nm':p['nomJ1'],'tel':p['telJ1']},
                   {'pr':p['prenJ2'],'nm':p['nomJ2'],'tel':p['telJ2']}]:
             msg = f"Bonjour {j['pr']} 👋\n\n📢 {nom_tournoi}\n📅 {date_str}\n🎯 Format : {format_jeu}\n━━━━━━━━━━━━━━\n👥 Votre paire :\n   {p['nf']}"
             if p['ts']: msg += f"\n⭐ {p['ts']}"
             if is_bye:  msg += "\n✅ Exempt du 1er tour (BYE)"
+            if contrainte_info: msg += contrainte_info
             msg += f"\n\n⏰ Convocation : {h_conv}h\n🏸 1er match — {tour} (M{num_m})\n   Heure : {h_m}h · Terrain {piste}"
             if adv_str: msg += f"\n🆚 Adversaires : {adv_str}"
             msg += "\n━━━━━━━━━━━━━━\nBonne chance ! 🏆\n— Organisation Arena18"
@@ -446,7 +583,7 @@ def generer():
 
     return jsonify({
         'paires':   paires,
-        'tableau':  [[s['t'], s['p'] if 't' in s and s['t']!='emp' else None] for s in T],
+        'tableau':  [[s['t'], s['p'] if s['t'] != 'emp' else None] for s in T],
         'matchs':   matchs,
         'messages': messages,
         'doublons': doublons,
@@ -455,70 +592,53 @@ def generer():
 
 @app.route('/pdf/tableau', methods=['POST'])
 def pdf_tableau():
-    data        = request.get_json()
-    T_raw       = data['tableau']
-    qf_map      = data['qfMap']
-    nom_tournoi = data.get('nomTournoi','P250')
-    date_str    = data.get('dateStr','')
-    format_jeu  = data.get('formatJeu','9 jeux NO-AD')
+    data = request.get_json()
+    T_raw = data['tableau']
+    qf_map = data['qfMap']
     T = [{'t':t,'p':p} if p else {'t':t} for t,p in T_raw]
-    pdf_bytes = generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu)
-    return send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name='tableau_p250.pdf'
-    )
+    pdf_bytes = generer_pdf_tableau(T, qf_map,
+        data.get('nomTournoi','P250'),
+        data.get('dateStr',''),
+        data.get('formatJeu','9 jeux NO-AD'))
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+        as_attachment=True, download_name='tableau_p250.pdf')
 
 @app.route('/pdf/feuille', methods=['POST'])
 def pdf_feuille():
     data = request.get_json()
     pdf_bytes = generer_pdf_feuille(
         data['matchs'], data['nomTournoi'],
-        data['dateStr'], data['sponsor'], data['formatJeu']
-    )
-    return send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name='feuille_route.pdf'
-    )
+        data['dateStr'], data['sponsor'], data['formatJeu'])
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+        as_attachment=True, download_name='feuille_route.pdf')
 
 @app.route('/sms/envoyer', methods=['POST'])
 def envoyer_sms():
-    data         = request.get_json()
-    messages     = data['messages']
-    account_sid  = data.get('twilioSid','')
-    auth_token   = data.get('twilioToken','')
-    from_number  = data.get('twilioFrom','')
-
+    data = request.get_json()
+    messages    = data['messages']
+    account_sid = data.get('twilioSid','')
+    auth_token  = data.get('twilioToken','')
+    from_number = data.get('twilioFrom','')
     if not all([account_sid, auth_token, from_number]):
         return jsonify({'error': 'Identifiants Twilio manquants'}), 400
-
     try:
         from twilio.rest import Client
         client = Client(account_sid, auth_token)
     except ImportError:
         return jsonify({'error': 'Module Twilio non installé'}), 500
-
     results = []
     for m in messages:
         tel = m.get('telClean','')
         if not tel or not tel.startswith('33'):
-            results.append({'tel': m.get('tel',''), 'status': 'skipped', 'reason': 'N° invalide'})
+            results.append({'tel':m.get('tel',''),'status':'skipped','reason':'N° invalide'})
             continue
         try:
-            msg = client.messages.create(
-                body=m['msg'],
-                from_=from_number,
-                to=f'+{tel}'
-            )
-            results.append({'tel': m.get('tel',''), 'status': 'sent', 'sid': msg.sid})
+            msg = client.messages.create(body=m['msg'], from_=from_number, to=f'+{tel}')
+            results.append({'tel':m.get('tel',''),'status':'sent','sid':msg.sid})
         except Exception as e:
-            results.append({'tel': m.get('tel',''), 'status': 'error', 'reason': str(e)})
-
-    sent  = sum(1 for r in results if r['status']=='sent')
-    return jsonify({'results': results, 'sent': sent, 'total': len(results)})
+            results.append({'tel':m.get('tel',''),'status':'error','reason':str(e)})
+    sent = sum(1 for r in results if r['status']=='sent')
+    return jsonify({'results':results,'sent':sent,'total':len(results)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
