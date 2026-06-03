@@ -274,7 +274,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
 
     # Logo Arena18
     c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 20)
+    c.setFont("Helvetica-Bold", 20)
     c.drawString(22, H-35, "Arena18")
     c.setFont("Helvetica", 7)
     c.setFillColorRGB(0.4, 0.4, 0.4)
@@ -386,7 +386,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
             c.drawString(x_eq + 12, y + 1, ts_nom)
             c.setFillColorRGB(*tc)
         elif m['num'] == 20:
-            c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 14)
+            c.setFont("Helvetica-Bold", 14)
             c.setFillColorRGB(1, 1, 1)
             c.drawCentredString(W/2 - 40, y + 5, "FINALE !")
             c.setFillColorRGB(1,1,1)
