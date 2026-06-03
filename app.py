@@ -550,6 +550,74 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
         noms = ', '.join([p['nf'] for p in sans_licence[:3]])
         alertes.append({'level':'warning', 'message': f'⚠️ Licence manquante pour : {noms} — vérifiez avant homologation'})
 
+    # 12. Contrainte horaire vs statut BYE/1er tour
+    if contraintes and len(paires) >= 8:
+        h_debut_min = hm_to_min(heure_debut)
+        
+        # Calcul approximatif des horaires clés
+        # 1/8 vague 1 : heure début
+        # 1/8 vague 2 : heure début + duree_principal
+        # QF vague 1  : heure début + 2 * duree_principal (après classement 9-12)
+        # QF vague 2  : heure début + 3 * duree_principal
+        h_18_v1 = h_debut_min
+        h_18_v2 = h_debut_min + duree_principal
+        h_qf_v1 = h_debut_min + duree_principal * 2 + duree_classement  # après 2 vagues 1/8 + classement
+        h_qf_v2 = h_qf_v1 + duree_principal
+
+        for pid, heure_c in contraintes.items():
+            hc_min = hm_to_min(heure_c)
+            p = next((pp for pp in paires if str(pp['id'])==str(pid)), None)
+            if not p: continue
+            
+            idx = paires.index(p)  # position dans le classement (0 = meilleure)
+            est_bye = idx < 4      # TS1-4 ont un BYE → entrent en QF
+            est_18_v1 = idx >= 8   # les 4 dernières paires jouent en 1/8 vague 1 ou 2
+
+            if est_bye:
+                # Paire avec BYE → entre en QF
+                # QF vague 1 (matchs 7,8) ou vague 2 (matchs 9,10)
+                if hc_min > h_qf_v2:
+                    alertes.append({
+                        'level': 'error',
+                        'message': f'❌ Contrainte impossible : {p["nf"]} ({p["ts"]}) entre en QF direct (BYE) '
+                                   f'mais est disponible à {heure_c} — les QF se terminent vers {min_to_hm(h_qf_v2 + duree_principal)}. '
+                                   f'Impossible de respecter le placement FFT obligatoire.'
+                    })
+                elif hc_min > h_qf_v1:
+                    alertes.append({
+                        'level': 'warning',
+                        'message': f'⚠️ Attention : {p["nf"]} ({p["ts"]}) a un BYE et entre en QF direct. '
+                                   f'Disponible à {heure_c} → sera placé en QF vague 2 (matchs 9 ou 10, ~{min_to_hm(h_qf_v1 + duree_principal)}). '
+                                   f'Le tirage au sort en tiendra compte.'
+                    })
+                else:
+                    alertes.append({
+                        'level': 'info',
+                        'message': f'ℹ️ {p["nf"]} ({p["ts"]}) — BYE, entre en QF. '
+                                   f'Disponible à {heure_c}, compatible avec les QF (~{min_to_hm(h_qf_v1)}). ✅'
+                    })
+            else:
+                # Paire sans BYE → joue un 1/8 de finale
+                if hc_min > h_18_v2 + duree_principal:
+                    alertes.append({
+                        'level': 'error',
+                        'message': f'❌ Contrainte impossible : {p["nf"]} doit jouer un 1/8 de finale '
+                                   f'mais est disponible à {heure_c} — après la fin des 1/8 (~{min_to_hm(h_18_v2 + duree_principal)}). '
+                                   f'Envisager de retirer la paire ou de décaler l'heure de début du tournoi.'
+                    })
+                elif hc_min > h_18_v1 + duree_principal // 2:
+                    alertes.append({
+                        'level': 'warning',
+                        'message': f'⚠️ {p["nf"]} disponible à {heure_c} → sera placé en 1/8 vague 2 '
+                                   f'(matchs 3 ou 4, ~{min_to_hm(h_18_v2)}). Le tirage au sort en tiendra compte. ✅'
+                    })
+                else:
+                    alertes.append({
+                        'level': 'info',
+                        'message': f'ℹ️ {p["nf"]} — 1/8 de finale. '
+                                   f'Disponible à {heure_c}, compatible avec tous les 1/8. ✅'
+                    })
+
     return alertes
 
 # ── Routes Flask ─────────────────────────
