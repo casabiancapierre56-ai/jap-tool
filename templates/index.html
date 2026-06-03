@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--or:#E8500A;--orl:#FF6B2B;--dk:#0F0F0F;--dk2:#1A1A1A;--dk3:#242424;--bd:#2E2E2E;--tx:#F0EDE8;--tx2:#9A9590;--gr:#2ECC71;--am:#F0A500;--mo:'DM Mono',monospace;--sa:'Syne',sans-serif;}
+:root.light{--dk:#F5F5F0;--dk2:#FFFFFF;--dk3:#EEEDE8;--bd:#D8D6D0;--tx:#1A1A1A;--tx2:#6A6A6A;}
+*{transition:background .2s,color .2s,border-color .2s;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh;}
 .hdr{background:var(--dk2);border-bottom:1px solid var(--bd);padding:14px 24px;display:flex;align-items:center;gap:14px;}
@@ -85,6 +87,7 @@ tr:hover td{background:var(--dk3);}
   <div class="badge">JAP Tool v2</div>
   <h1>Tournoi Padel FFT — Arena18</h1>
   <span id="sb">En attente du CSV FFT</span>
+  <button onclick="toggleTheme()" id="theme-btn" style="margin-left:12px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--mo);font-size:11px;font-weight:600;white-space:nowrap;">☀️ Mode clair</button>
 </div>
 <div class="wrap">
   <div class="side">
@@ -445,6 +448,26 @@ function raz(){
 }
 
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
+
+// ── THEME ─────────────────────────────
+function toggleTheme(){
+  const root=document.documentElement;
+  const btn=document.getElementById('theme-btn');
+  if(root.classList.contains('light')){
+    root.classList.remove('light');
+    btn.textContent='☀️ Mode clair';
+    localStorage.setItem('theme','dark');
+  } else {
+    root.classList.add('light');
+    btn.textContent='🌙 Mode sombre';
+    localStorage.setItem('theme','light');
+  }
+}
+// Restaurer le thème sauvegardé
+if(localStorage.getItem('theme')==='light'){
+  document.documentElement.classList.add('light');
+  document.getElementById('theme-btn').textContent='🌙 Mode sombre';
+}
 </script>
 </body>
 </html>
