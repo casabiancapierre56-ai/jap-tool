@@ -473,7 +473,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
 
 
 # ── Validation règlement FFT ─────────────
-def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes):
+def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
     alertes = []  # {'level': 'error'|'warning'|'info', 'message': str}
 
     # ── ERREURS BLOQUANTES (rouge) ────────
@@ -497,7 +497,17 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
     fmt_upper = format_jeu.upper()
     format_ok = any(f in fmt_upper for f in formats_autorises)
     if not format_ok:
-        alertes.append({'level':'error', 'message': f'❌ Format de jeu non reconnu : "{format_jeu}" — Formats autorisés P250 : A2, B2, C2, D2, E, F'})
+        alertes.append({'level':'error', 'message': f'Erreur format principal non reconnu : "{format_jeu}" — Formats autorises P250 : A2, B2, C2, D2, E, F'})
+    
+    # Format classement
+    if format_jeu_classement and format_jeu_classement != format_jeu:
+        fmt_cls_upper = format_jeu_classement.upper()
+        format_cls_ok = any(f in fmt_cls_upper for f in formats_autorises)
+        if not format_cls_ok:
+            alertes.append({'level':'error', 'message': f'Erreur format classement non reconnu : "{format_jeu_classement}"'})
+        # Info si formats différents
+        else:
+            alertes.append({'level':'info', 'message': f'Info : Format principal = {format_jeu[:30]} | Format classement = {format_jeu_classement[:30]}'})
 
     # 4. Contrainte horaire impossible
     if contraintes:
@@ -636,7 +646,8 @@ def generer():
     nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Sénior')
     date_str         = data.get('dateStr', '')
     sponsor          = data.get('sponsor', 'CUPRA LANESTER')
-    format_jeu       = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
+    format_jeu            = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
+    format_jeu_classement = data.get('formatJeuClassement', format_jeu)
     contraintes      = data.get('contraintes', {})  # {paire_id: 'HH:MM'}
 
     try:
@@ -648,7 +659,7 @@ def generer():
         return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvées'}), 400
 
     # Validation règlement FFT
-    alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes)
+    alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement)
     
     # Bloquer si erreurs critiques (sauf doublons qui sont dans les alertes)
     erreurs_bloquantes = [a for a in alertes if a['level']=='error' and 'Doublon' not in a['message'] and 'Minimum 4' not in a['message']]
@@ -762,6 +773,7 @@ def generer():
         'doublons': doublons,
         'qfMap':    qf_map,
         'alertes':  alertes,
+        'formatJeuClassement': format_jeu_classement,
     })
 
 @app.route('/pdf/tableau', methods=['POST'])
