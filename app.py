@@ -17,6 +17,19 @@ PDF_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'tableau16_b64.
 with open(PDF_B64_PATH) as f:
     PDF_VIERGE_B64 = f.read().strip()
 
+FDR_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'feuille_route_b64.txt')
+FDR_VIERGE_B64 = None
+
+def get_fdr_b64():
+    global FDR_VIERGE_B64
+    if FDR_VIERGE_B64 is None:
+        try:
+            with open(FDR_B64_PATH) as f:
+                FDR_VIERGE_B64 = f.read().strip()
+        except FileNotFoundError:
+            return None
+    return FDR_VIERGE_B64
+
 W_PDF, H_PDF = 595.2, 841.8
 Y_1T = [735.4,694.8,654.3,613.7,573.2,532.6,492.0,451.4,
         410.9,370.3,329.8,289.2,248.6,208.0,167.5,126.9]
@@ -86,76 +99,53 @@ def parse_csv(text):
 
 # ── Construction tableau FFT ─────────────
 def build_tableau(paires, contraintes=None):
-    """
-    contraintes : dict {paire_id: 'HH:MM'} — heure min de disponibilité
-    """
     ts1, ts2   = paires[0], paires[1]
     ts34       = shuffle([paires[2], paires[3]])
     ts58       = shuffle([paires[4], paires[5], paires[6], paires[7]])
     autres     = shuffle(paires[8:])
 
-    # Appliquer contraintes horaires sur les équipes sans BYE
-    # Les paires avec contrainte tardive vont en matchs plus tardifs
     if contraintes:
         def get_contrainte(p):
             return hm_to_min(contraintes.get(str(p['id']), '00:00'))
-        # Trier ts58 et autres selon contraintes (les plus tardives en dernier)
         ts58  = sorted(ts58,  key=get_contrainte)
         autres = sorted(autres, key=get_contrainte)
 
     T = [
-        {'t':'bye','p':ts2},        # 0
-        {'t':'emp'},                 # 1
-        {'t':'eq', 'p':autres[0]},  # 2  ─┐ M1
-        {'t':'ts', 'p':ts58[0]},    # 3  ─┘
-        {'t':'ts', 'p':ts58[1]},    # 4  ─┐ M2
-        {'t':'eq', 'p':autres[1]},  # 5  ─┘
-        {'t':'bye','p':ts34[0]},    # 6
-        {'t':'emp'},                 # 7
-        {'t':'bye','p':ts34[1]},    # 8
-        {'t':'emp'},                 # 9
-        {'t':'ts', 'p':ts58[2]},    # 10 ─┐ M3
-        {'t':'eq', 'p':autres[2]},  # 11 ─┘
-        {'t':'eq', 'p':autres[3]},  # 12 ─┐ M4
-        {'t':'ts', 'p':ts58[3]},    # 13 ─┘
-        {'t':'bye','p':ts1},        # 14
-        {'t':'emp'},                 # 15
+        {'t':'bye','p':ts2},
+        {'t':'emp'},
+        {'t':'eq', 'p':autres[0]},
+        {'t':'ts', 'p':ts58[0]},
+        {'t':'ts', 'p':ts58[1]},
+        {'t':'eq', 'p':autres[1]},
+        {'t':'bye','p':ts34[0]},
+        {'t':'emp'},
+        {'t':'bye','p':ts34[1]},
+        {'t':'emp'},
+        {'t':'ts', 'p':ts58[2]},
+        {'t':'eq', 'p':autres[2]},
+        {'t':'eq', 'p':autres[3]},
+        {'t':'ts', 'p':ts58[3]},
+        {'t':'bye','p':ts1},
+        {'t':'emp'},
     ]
     return T, ts34, ts58
 
-# ── Calcul horaires avec contraintes ─────
+# ── Calcul horaires ──────────────────────
 def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes=None, T=None):
-    """
-    Calcule les horaires en tenant compte :
-    - de deux durées différentes (principal vs classement)
-    - des contraintes horaires par paire
-    """
-    # Matchs principaux (tableau) vs classement
-    matchs_principal   = {1,2,3,4,7,8,9,10,15,16,20}
-    matchs_classement  = {5,6,11,12,13,14,17,18,19}
+    matchs_principal  = {1,2,3,4,7,8,9,10,15,16,20}
+    matchs_classement = {5,6,11,12,13,14,17,18,19}
 
     def duree(num):
         return duree_principal if num in matchs_principal else duree_classement
 
-    # Structure des vagues (2 matchs simultanés max)
     vagues = [
-        [1,2],       # 1/8 vague 1
-        [3,4],       # 1/8 vague 2
-        [5,6],       # classement 9-12
-        [7,8],       # QF vague 1
-        [9,10],      # QF vague 2
-        [11,12],     # classement suite
-        [13,14],     # classement 5-8
-        [15,16],     # SF
-        [17,18],     # classements
-        [19],        # 3/4
-        [20],        # finale
+        [1,2],[3,4],[5,6],[7,8],[9,10],[11,12],
+        [13,14],[15,16],[17,18],[19],[20],
     ]
 
     horaires = {}
     h_cur = heure_debut
 
-    # Mapping match → paires impliquées (pour contraintes)
     match_paires = {}
     if T:
         match_paires[1] = [T[2]['p'], T[3]['p']]
@@ -164,10 +154,7 @@ def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, con
         match_paires[4] = [T[12]['p'], T[13]['p']]
 
     for vague in vagues:
-        # Calculer l'heure de début de cette vague
-        # en tenant compte des contraintes des paires impliquées
         h_vague = hm_to_min(h_cur)
-
         if contraintes and T:
             for num in vague:
                 if num in match_paires:
@@ -176,14 +163,10 @@ def calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, con
                             c_min = hm_to_min(contraintes[str(p['id'])])
                             if c_min > h_vague:
                                 h_vague = c_min
-
         h_vague_str = min_to_hm(h_vague)
-
         for i, num in enumerate(vague):
             piste = (i % nb_pistes) + 1
             horaires[num] = (h_vague_str, piste)
-
-        # Avancer au prochain créneau
         dur_max = max(duree(n) for n in vague)
         nb_v = (len(vague) + nb_pistes - 1) // nb_pistes
         h_cur = min_to_hm(h_vague + nb_v * dur_max)
@@ -261,197 +244,169 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
     return out.getvalue()
 
 # ── Génération PDF feuille de route ──────
-# Fidèle au modèle Arena18 officiel
+FW, FH = 595.5, 842.25
+MATCH_Y_FDR = {
+    1: 719, 2: 690, 3: 661, 4: 632,
+    5: 602.1, 6: 567.9, 7: 533.7, 8: 499.5,
+    9: 465.3, 10: 431.2, 11: 397.0, 12: 362.8,
+    13: 328.6, 14: 294.4, 15: 260.2, 16: 226.0,
+    17: 191.8, 18: 157.7, 19: 123.5
+}
+X_EQ_START = 62
+X_EQ_END   = 420
+
 def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
-    W, H = A4  # 595 x 842
     packet = io.BytesIO()
-    c = canvas.Canvas(packet, pagesize=A4)
+    c = canvas.Canvas(packet, pagesize=(FW, FH))
 
-    # ── HEADER ──────────────────────────
-    # Bande blanche de fond
-    c.setFillColorRGB(1, 1, 1)
-    c.rect(0, H-95, W, 95, fill=1, stroke=0)
-
-    # Logo Arena18
+    # Date
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 20)
-    c.drawString(22, H-35, "Arena18")
-    c.setFont("Helvetica", 7)
-    c.setFillColorRGB(0.4, 0.4, 0.4)
-    c.drawString(22, H-46, "VOUS DE JOUER")
+    c.drawString(60, 781, date_str.upper() if date_str else '')
 
-    # TOURNOI P250
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawCentredString(W/2, H-25, "TOURNOI")
-    c.setFont("Helvetica-Bold", 28)
-    c.drawCentredString(W/2, H-55, "P250")
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(W/2, H-68, f"by {sponsor}")
-
-    # 12 équipes + format
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawRightString(W-22, H-28, "12 équipes")
+    # Terrains matchs 1 et 2
     c.setFont("Helvetica-Bold", 8)
-    c.drawRightString(W-22, H-42, "Format D2:")
-    c.setFont("Helvetica", 7.5)
-    c.drawRightString(W-22, H-53, format_jeu[:40])
-
-    # DATE
-    c.setFont("Helvetica-Bold", 13)
     c.setFillColorRGB(0, 0, 0)
-    c.drawString(22, H-82, f"DATE :  {date_str.upper() if date_str else ''}")
+    c.drawCentredString(527, 714, "DECATHLON")
+    c.drawCentredString(527, 685, "CUPRA")
 
-    # ── LIGNE SÉPARATRICE ───────────────
-    c.setLineWidth(1.5)
-    c.setStrokeColorRGB(0, 0, 0)
-    c.line(22, H-92, W-22, H-92)
-    c.setLineWidth(0.5)
-
-    # ── EN-TÊTES COLONNES ───────────────
-    y_hdr = H - 104
-    # Fond noir header
-    c.setFillColorRGB(0, 0, 0)
-    c.rect(22, y_hdr - 2, W-44, 14, fill=1, stroke=0)
-    c.setFillColorRGB(1, 1, 1)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(40, y_hdr + 3, "MATCHS")
-    c.drawCentredString(W/2 - 30, y_hdr + 3, "NOM DES ÉQUIPES")
-    c.drawCentredString(W - 120, y_hdr + 3, "ORDRE\nMATCHS")
-    c.drawCentredString(W - 50, y_hdr + 3, "ORDRE A SUIVRE")
-    c.setFillColorRGB(0, 0, 0)
-
-    # ── LIGNES MATCHS ───────────────────
-    y = y_hdr - 16
-    row_h = 18.5
-    BALLES_MATCHS = {1, 2, 7, 8, 15, 16, 20}
+    max_w = X_EQ_END - X_EQ_START - 8
 
     for m in matchs:
-        if y < 55:  # protection bas de page
-            break
+        num = m['num']
+        y = MATCH_Y_FDR.get(num)
+        if not y:
+            continue
 
-        # Fond alterné
-        if m['num'] == 20:
-            c.setFillColorRGB(0, 0, 0)
-        else:
-            bg = (1,1,1) if m['num'] % 2 == 1 else (0.95, 0.95, 0.95)
-            c.setFillColorRGB(*bg)
-        c.rect(22, y - 3, W-44, row_h, fill=1, stroke=0)
+        fs = 8.5
 
-        # Bordure ligne
-        c.setStrokeColorRGB(0.8, 0.8, 0.8)
-        c.line(22, y - 3, W-22, y - 3)
-        c.setStrokeColorRGB(0, 0, 0)
+        if num <= 4:
+            # Matchs 1-4 : PaireA     PaireB sur une ligne
+            if m.get('pA') and m.get('pB'):
+                pa, pb = m['pA'], m['pB']
+                ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
+                eb = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
+                texte = f"{ea}     {eb}"
+                c.setFont("Helvetica-Bold", fs)
+                while c.stringWidth(texte, "Helvetica-Bold", fs) > max_w and fs > 5.5:
+                    fs -= 0.2
+                c.setFillColorRGB(0, 0, 0)
+                c.drawString(X_EQ_START, y, texte)
 
-        tc = (1,1,1) if m['num'] == 20 else (0,0,0)
-        c.setFillColorRGB(*tc)
-
-        # Numéro match
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(35, y + 4, str(m['num']))
-
-        # Icône balle jaune
-        if m['num'] in BALLES_MATCHS:
-            c.setFillColorRGB(0.78, 0.70, 0.0)
-            c.circle(48, y + 6, 5, fill=1, stroke=0)
-            # Texte "Balles" en blanc
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont("Helvetica-Bold", 3.5)
-            c.drawCentredString(48, y + 5.5, "Balles")
-            c.drawCentredString(48, y + 3, "Neuves")
-            c.setFillColorRGB(*tc)
-
-        # Nom des équipes
-        x_eq = 58
-        if m.get('pA') and m.get('pB'):
-            pa, pb = m['pA'], m['pB']
-            c.setFont("Helvetica-Bold", 8)
-            nom_a = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
-            nom_b = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']}"
-            c.drawString(x_eq, y + 9, nom_a)
-            c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(x_eq, y + 1, "VS")
-            c.setFont("Helvetica-Bold", 8); c.setFillColorRGB(*tc)
-            c.drawString(x_eq + 12, y + 1, nom_b)
-        elif m.get('pB') and m.get('libA'):
-            pb = m['pB']
-            c.setFont("Helvetica-Bold", 8)
-            c.drawString(x_eq, y + 9, m['libA'])
-            c.setFont("Helvetica", 7); c.setFillColorRGB(0.5,0.5,0.5)
-            c.drawString(x_eq, y + 1, "VS")
-            c.setFillColorRGB(0.7, 0.1, 0.1) if m['num'] != 20 else c.setFillColorRGB(1,0.5,0.5)
-            c.setFont("Helvetica-Bold", 8)
-            ts_nom = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
-            c.drawString(x_eq + 12, y + 1, ts_nom)
-            c.setFillColorRGB(*tc)
-        elif m['num'] == 20:
-            c.setFont("Helvetica-Black" if "Helvetica-Black" in c._fontnames else "Helvetica-Bold", 14)
-            c.setFillColorRGB(1, 1, 1)
-            c.drawCentredString(W/2 - 40, y + 5, "FINALE !")
-            c.setFillColorRGB(1,1,1)
-        else:
-            c.setFont("Helvetica-Bold", 8)
-            la = m.get('libA', '')
-            lb = m.get('libB', '')
-            if la and lb:
-                c.drawString(x_eq, y + 5, f"{la}   VS   {lb}")
-            else:
-                c.drawString(x_eq, y + 5, la or lb or '')
-
-        # Ligne diagonale score (sauf finale)
-        if m['num'] != 20:
-            c.setStrokeColorRGB(0.3, 0.3, 0.3)
-            c.setLineWidth(0.8)
-            x_slash = W - 155
-            c.line(x_slash, y - 2, x_slash + 30, y + row_h - 2)
-            c.setLineWidth(0.5)
-            c.setStrokeColorRGB(0, 0, 0)
-
-        # Ordre match
-        c.setFillColorRGB(*tc)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawCentredString(W - 118, y + 5, m['ordre'])
-
-        # Ordre à suivre (terrain)
-        c.setFont("Helvetica", 7)
-        terrain_txt = m.get('terrain_str', '1ER TERRAIN\nQUI SE LIBÈRE')
-        lines_t = terrain_txt.split('\n')
-        if len(lines_t) == 2:
-            c.drawCentredString(W - 48, y + 8, lines_t[0])
-            c.drawCentredString(W - 48, y + 1, lines_t[1])
-        else:
-            c.drawCentredString(W - 48, y + 5, terrain_txt)
-
-        # Séparateurs verticaux
-        c.setStrokeColorRGB(0.7, 0.7, 0.7)
-        c.line(55, y-3, 55, y+row_h-3)      # après numéro
-        c.line(W-135, y-3, W-135, y+row_h-3) # avant ordre match
-        c.line(W-80, y-3, W-80, y+row_h-3)   # avant terrain
-        c.setStrokeColorRGB(0, 0, 0)
-
-        y -= row_h
-
-    # ── BORDURE TABLEAU ─────────────────
-    c.setLineWidth(1)
-    c.rect(22, y + row_h - 3, W-44, y_hdr - 2 - (y + row_h - 3) + 16, fill=0, stroke=1)
-
-    # ── FOOTER LOGOS ────────────────────
-    y_footer = 22
-    c.setLineWidth(0.5)
-    c.line(22, y_footer + 14, W-22, y_footer + 14)
-    logos = ["CONVI GROUPE", "FFT PADEL", sponsor.upper(), "DÉCATHLON"]
-    for i, logo in enumerate(logos):
-        x_logo = 30 + i * 130
-        c.setFillColorRGB(0, 0, 0)
-        c.setFont("Helvetica-Bold", 7.5)
-        c.drawString(x_logo, y_footer + 4, logo)
-        c.setLineWidth(0.5)
-        c.rect(x_logo - 3, y_footer, 100, 12, fill=0, stroke=1)
+        elif num in (7, 8, 9, 10):
+            # QF : TS qualifiée alignée à droite en rouge
+            if m.get('pB'):
+                pb = m['pB']
+                ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
+                c.setFont("Helvetica-Bold", fs)
+                while c.stringWidth(ts_str, "Helvetica-Bold", fs) > max_w and fs > 6:
+                    fs -= 0.3
+                c.setFillColorRGB(0.75, 0.1, 0.05)
+                c.drawRightString(X_EQ_END, y - 7, ts_str)
+                c.setFillColorRGB(0, 0, 0)
 
     c.save()
     packet.seek(0)
-    return packet.getvalue()
+
+    fdr_b64 = get_fdr_b64()
+    if not fdr_b64:
+        raise FileNotFoundError("Modele feuille de route non trouve")
+    template_bytes = base64.b64decode(fdr_b64)
+    reader  = PdfReader(io.BytesIO(template_bytes))
+    overlay = PdfReader(packet)
+    writer  = PdfWriter()
+    page    = reader.pages[0]
+    page.merge_page(overlay.pages[0])
+    writer.add_page(page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+# ── Validation règlement FFT ─────────────
+def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
+    alertes = []
+
+    if len(paires) < 4:
+        alertes.append({'level':'error', 'message': f'Minimum 4 paires requises ({len(paires)} trouvees)'})
+
+    lm = {}
+    for p in paires:
+        for l in [p.get('licJ1',''), p.get('licJ2','')]:
+            if not l: continue
+            lu = l.lower()
+            if lu in lm:
+                alertes.append({'level':'error', 'message': f'Doublon de licence : {l}'})
+            else:
+                lm[lu] = True
+
+    formats_autorises = ['A1','A2','B1','B2','C1','C2','D1','D2','E','F']
+    fmt_upper = format_jeu.upper()
+    if not any(f in fmt_upper for f in formats_autorises):
+        alertes.append({'level':'error', 'message': f'Format principal non reconnu : {format_jeu}'})
+
+    if format_jeu_classement and format_jeu_classement != format_jeu:
+        fmt_cls = format_jeu_classement.upper()
+        if not any(f in fmt_cls for f in formats_autorises):
+            alertes.append({'level':'error', 'message': f'Format classement non reconnu : {format_jeu_classement}'})
+        else:
+            alertes.append({'level':'info', 'message': f'Formats differents : Principal={format_jeu[:25]} | Classement={format_jeu_classement[:25]}'})
+
+    if duree_principal < 30:
+        alertes.append({'level':'warning', 'message': f'Duree match principal courte ({duree_principal} min)'})
+    if duree_classement < 20:
+        alertes.append({'level':'warning', 'message': f'Duree match classement courte ({duree_classement} min)'})
+
+    h_debut_min = hm_to_min(heure_debut)
+    duree_totale = 11 * max(duree_principal, duree_classement)
+    h_fin_min = h_debut_min + duree_totale
+    if h_fin_min > 23*60:
+        alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee apres minuit ({min_to_hm(h_fin_min)})'})
+    elif h_fin_min > 22*60:
+        alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee a {min_to_hm(h_fin_min)}'})
+
+    if duree_classement >= 45 and duree_principal >= 45:
+        alertes.append({'level':'warning', 'message': 'Pour gagner du temps : Format F conseille pour les matchs de classement (~20 min)'})
+
+    if len(paires) % 2 != 0:
+        alertes.append({'level':'warning', 'message': f'Nombre de paires impair ({len(paires)})'})
+
+    sans_lic = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
+    if sans_lic:
+        noms = ', '.join([p['nf'] for p in sans_lic[:3]])
+        alertes.append({'level':'warning', 'message': f'Licence manquante : {noms}'})
+
+    if contraintes and len(paires) >= 8:
+        h_18_v1 = h_debut_min
+        h_18_v2 = h_debut_min + duree_principal
+        h_qf_v1 = h_debut_min + duree_principal * 2 + duree_classement
+        h_qf_v2 = h_qf_v1 + duree_principal
+
+        for pid, heure_c in contraintes.items():
+            hc_min = hm_to_min(heure_c)
+            p = next((pp for pp in paires if str(pp['id'])==str(pid)), None)
+            if not p: continue
+            idx = next((i for i,pp in enumerate(paires) if pp['id']==p['id']), 99)
+            est_bye = idx < 4
+
+            if est_bye:
+                if hc_min > h_qf_v2:
+                    alertes.append({'level':'error', 'message': f'{p["nf"]} ({p["ts"]}) a un BYE mais disponible a {heure_c} apres la fin des QF. Impossible.'})
+                elif hc_min > h_qf_v1:
+                    alertes.append({'level':'warning', 'message': f'{p["nf"]} ({p["ts"]}) BYE - sera place en QF vague 2 ({min_to_hm(h_qf_v1+duree_principal)})'})
+                else:
+                    alertes.append({'level':'info', 'message': f'{p["nf"]} ({p["ts"]}) BYE - contrainte {heure_c} compatible avec les QF'})
+            else:
+                if hc_min > h_18_v2 + duree_principal:
+                    alertes.append({'level':'error', 'message': f'{p["nf"]} doit jouer un 1/8 mais disponible a {heure_c} apres la fin des 1/8.'})
+                elif hc_min > h_18_v1 + duree_principal // 2:
+                    alertes.append({'level':'warning', 'message': f'{p["nf"]} disponible a {heure_c} - sera place en 1/8 vague 2 ({min_to_hm(h_18_v2)})'})
+                else:
+                    alertes.append({'level':'info', 'message': f'{p["nf"]} - contrainte {heure_c} compatible'})
+
+    alertes.append({'level':'info', 'message': f'Balles neuves : matchs 1,2,7,8,15,16,20 - prevoir {7*3} balles minimum'})
+    alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
+
+    return alertes
 
 # ── Routes Flask ─────────────────────────
 @app.route('/')
@@ -466,21 +421,23 @@ def generer():
     nb_pistes        = int(data.get('nbPistes', 2))
     duree_principal  = int(data.get('dureeMatchPrincipal', 45))
     duree_classement = int(data.get('dureeMatchClassement', 45))
-    nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Sénior')
+    nom_tournoi      = data.get('nomTournoi', 'P250 Double Messieurs Senior')
     date_str         = data.get('dateStr', '')
     sponsor          = data.get('sponsor', 'CUPRA LANESTER')
-    format_jeu       = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
-    contraintes      = data.get('contraintes', {})  # {paire_id: 'HH:MM'}
+    format_jeu            = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
+    format_jeu_classement = data.get('formatJeuClassement', format_jeu)
+    contraintes      = data.get('contraintes', {})
 
     try:
         paires = parse_csv(csv_text)
     except Exception as e:
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
 
-    if len(paires) < 8:
-        return jsonify({'error': f'Minimum 8 paires requises, {len(paires)} trouvées'}), 400
+    if len(paires) < 4:
+        return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvees'}), 400
 
-    # Vérif doublons
+    alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement)
+
     lm, doublons = {}, []
     for p in paires:
         for l in [p['licJ1'], p['licJ2']]:
@@ -507,26 +464,26 @@ def generer():
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
     matchs = [
-        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b,  'terrain_str':'TERRAIN\nDÉCATHLON'},
-        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b,  'terrain_str':'TERRAIN\nCUPRA'},
-        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b,  'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b,  'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':5,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':6,  'ordre':'9 à 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4,'terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7,'terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':11, 'ordre':'11 à 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':12, 'ordre':'9 à 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':13, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':14, 'ordre':'5 à 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
-        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16','terrain_str':'1ER TERRAIN\nQUI SE LIBÈRE'},
-        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16','terrain_str':'2EME TERRAIN\nQUI SE LIBÈRE'},
+        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b},
+        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b},
+        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b},
+        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b},
+        {'num':5,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2'},
+        {'num':6,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4'},
+        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0},
+        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3},
+        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4},
+        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7},
+        {'num':11, 'ordre':'11 a 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6'},
+        {'num':12, 'ordre':'9 a 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6'},
+        {'num':13, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8'},
+        {'num':14, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10'},
+        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8'},
+        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10'},
+        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14'},
+        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14'},
+        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16'},
+        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
     ]
 
     for m in matchs:
@@ -534,7 +491,6 @@ def generer():
         m['heure'] = h_m
         m['piste'] = piste
 
-    # Messages WhatsApp
     paire_match = {}
     for num, (sa,sb) in {1:(2,3),2:(4,5),3:(10,11),4:(12,13)}.items():
         h_m, piste = horaires[num]
@@ -560,20 +516,66 @@ def generer():
 
         contrainte_info = ''
         if str(p['id']) in contraintes:
-            contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
+            contrainte_info = f"\n Disponible a partir de {contraintes[str(p['id'])]}h"
 
         for j in [{'pr':p['prenJ1'],'nm':p['nomJ1'],'tel':p['telJ1']},
                   {'pr':p['prenJ2'],'nm':p['nomJ2'],'tel':p['telJ2']}]:
-            msg = f"Bonjour {j['pr']} 👋\n\n📢 {nom_tournoi}\n📅 {date_str}\n🎯 Format : {format_jeu}\n━━━━━━━━━━━━━━\n👥 Votre paire :\n   {p['nf']}"
-            if p['ts']: msg += f"\n⭐ {p['ts']}"
-            if is_bye:  msg += "\n✅ Exempt du 1er tour (BYE)"
-            if contrainte_info: msg += contrainte_info
-            msg += f"\n\n⏰ Convocation : {h_conv}h\n🏸 1er match — {tour} (M{num_m})\n   Heure : {h_m}h · Terrain {piste}"
-            if adv_str: msg += f"\n🆚 Adversaires : {adv_str}"
-            msg += "\n━━━━━━━━━━━━━━\nBonne chance ! 🏆\n— Organisation Arena18"
 
-            tel_c = j['tel'].replace(' ','').lstrip('0')
-            tel_c = '33' + tel_c if tel_c and not tel_c.startswith('33') else tel_c
+            # Ligne d'entrée en lice
+            if is_bye:
+                entree = "🔥 Entrée en lice directement en Quart de Finale"
+            else:
+                entree = f"🔥 Entrée en lice en {tour}"
+
+            # TS + BYE
+            ts_line = ''
+            if p['ts']: ts_line += f"\n⭐ {p['ts']}"
+            if is_bye:  ts_line += " ✅ Exempt du 1er tour"
+
+            # Adversaires
+            adv_line = ''
+            if adv_str: adv_line = f"\n🆚 Adversaires : {adv_str}"
+
+            # Contrainte
+            if str(p['id']) in contraintes:
+                contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
+            else:
+                contrainte_info = ''
+
+            msg = (
+                f"ARENA18 – TOURNOI\n\n"
+                f"Bonjour {j['pr']} 👋\n\n"
+                f"🏆 {nom_tournoi}\n"
+                f"📅 {date_str}\n"
+                f"🎾 Format • {format_jeu}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"👥 Votre paire : {p['nf']}"
+                f"{ts_line}"
+                f"{contrainte_info}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"⏰ Convocation : {h_conv}h\n"
+                f"{entree}\n"
+                f"🎾 Match M{num_m}  🕛 Heure : {h_m}h  📍 Terrain {piste}"
+                f"{adv_line}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"Toute l'équipe ARENA18 vous souhaite un excellent tournoi.\n"
+                f"💚 PLAY HARD. ENJOY MORE.\n"
+                f"ARENA18 PADEL CLUB 🎾"
+            )
+
+            tel_raw = j['tel'].replace(' ','').replace('.','').replace('-','')
+            if tel_raw.startswith('+33'):
+                tel_c = tel_raw[1:]
+            elif tel_raw.startswith('0033'):
+                tel_c = tel_raw[2:]
+            elif tel_raw.startswith('33') and len(tel_raw) == 11:
+                tel_c = tel_raw
+            elif tel_raw.startswith('0') and len(tel_raw) == 10:
+                tel_c = '33' + tel_raw[1:]
+            elif len(tel_raw) == 9 and not tel_raw.startswith('33'):
+                tel_c = '33' + tel_raw  # 685603907 → 33685603907
+            else:
+                tel_c = tel_raw
             messages.append({
                 'prenom': j['pr'], 'nom': j['nm'],
                 'tel': j['tel'], 'telClean': tel_c,
@@ -588,6 +590,8 @@ def generer():
         'messages': messages,
         'doublons': doublons,
         'qfMap':    qf_map,
+        'alertes':  alertes,
+        'formatJeuClassement': format_jeu_classement,
     })
 
 @app.route('/pdf/tableau', methods=['POST'])
@@ -605,12 +609,18 @@ def pdf_tableau():
 
 @app.route('/pdf/feuille', methods=['POST'])
 def pdf_feuille():
-    data = request.get_json()
-    pdf_bytes = generer_pdf_feuille(
-        data['matchs'], data['nomTournoi'],
-        data['dateStr'], data['sponsor'], data['formatJeu'])
-    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
-        as_attachment=True, download_name='feuille_route.pdf')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Donnees JSON manquantes'}), 400
+        pdf_bytes = generer_pdf_feuille(
+            data['matchs'], data.get('nomTournoi',''),
+            data.get('dateStr',''), data.get('sponsor',''), data.get('formatJeu',''))
+        return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+            as_attachment=True, download_name='feuille_route.pdf')
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
 
 @app.route('/sms/envoyer', methods=['POST'])
 def envoyer_sms():
@@ -625,12 +635,12 @@ def envoyer_sms():
         from twilio.rest import Client
         client = Client(account_sid, auth_token)
     except ImportError:
-        return jsonify({'error': 'Module Twilio non installé'}), 500
+        return jsonify({'error': 'Module Twilio non installe'}), 500
     results = []
     for m in messages:
         tel = m.get('telClean','')
         if not tel or not tel.startswith('33'):
-            results.append({'tel':m.get('tel',''),'status':'skipped','reason':'N° invalide'})
+            results.append({'tel':m.get('tel',''),'status':'skipped','reason':'N invalide'})
             continue
         try:
             msg = client.messages.create(body=m['msg'], from_=from_number, to=f'+{tel}')
@@ -639,6 +649,36 @@ def envoyer_sms():
             results.append({'tel':m.get('tel',''),'status':'error','reason':str(e)})
     sent = sum(1 for r in results if r['status']=='sent')
     return jsonify({'results':results,'sent':sent,'total':len(results)})
+
+@app.route('/sms/reponse', methods=['GET', 'POST'])
+def sms_reponse():
+    """Webhook Twilio : redirige les réponses SMS vers le numéro Arena18"""
+    from twilio.twiml.messaging_response import MessagingResponse
+    from twilio.rest import Client
+    import os
+
+    expediteur = request.form.get('From', '')
+    message    = request.form.get('Body', '')
+    
+    # Numéro de redirection (ton numéro Pierre)
+    REDIRECT_TO = '+33685603907'
+    
+    # Identifiants Twilio depuis variables d'environnement ou hardcodés
+    account_sid = os.environ.get('TWILIO_SID', 'AC48dc9c9d1f8ad60d142d23612c0abd27')
+    auth_token  = os.environ.get('TWILIO_TOKEN', '')
+    from_number = '+33939247914'
+    
+    if auth_token:
+        try:
+            client = Client(account_sid, auth_token)
+            corps = f"📱 Réponse de {expediteur}:\n\n{message}"
+            client.messages.create(body=corps, from_=from_number, to=REDIRECT_TO)
+        except Exception as e:
+            print(f"Erreur redirection SMS: {e}")
+    
+    # Réponse vide à Twilio (pas de réponse auto au joueur)
+    resp = MessagingResponse()
+    return str(resp)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
