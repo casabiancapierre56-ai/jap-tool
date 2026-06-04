@@ -452,6 +452,7 @@ async function generer(){
     const data=await r.json();
     if(data.error){alert(data.error);return;}
     genData=data;
+    sauvegarderSession();
     renTab(data); renH(data); renMsg(data);
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
@@ -685,6 +686,7 @@ function raz(){
   document.getElementById('b-tab').disabled=true;
   document.getElementById('b-fdr').disabled=true;
   document.getElementById('b-csv').disabled=true;
+  localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
   document.getElementById('contraintes-list').innerHTML='';
@@ -936,6 +938,86 @@ function loadTwilio(){
   if(num) document.getElementById('tw-num').value=num;
 }
 
+// ── Sauvegarde session automatique ──
+function sauvegarderSession(){
+  if(!genData) return;
+  try {
+    const session = {
+      genData,
+      params: {
+        nomTournoi: document.getElementById('nt').value,
+        sponsor: document.getElementById('sp').value,
+        dt: document.getElementById('dt').value,
+        hd: document.getElementById('hd').value,
+        np: document.getElementById('np').value,
+        dp: document.getElementById('dp').value,
+        dc: document.getElementById('dc').value,
+        fg: document.getElementById('fg').value,
+        fgCls: document.getElementById('fg-cls').value,
+        niveau: document.getElementById('niveau').value,
+      },
+      savedAt: new Date().toLocaleString('fr-FR')
+    };
+    localStorage.setItem('jap_session', JSON.stringify(session));
+  } catch(e) { console.error('Erreur sauvegarde session:', e); }
+}
+
+function restaurerSession(){
+  try {
+    const raw = localStorage.getItem('jap_session');
+    if(!raw) return;
+    const session = JSON.parse(raw);
+    if(!session.genData) return;
+
+    // Afficher bannière de restauration
+    const banner = document.createElement('div');
+    banner.id = 'restore-banner';
+    banner.style = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--dk2);border:1px solid var(--or);color:var(--tx);padding:14px 20px;border-radius:10px;font-family:var(--mo);font-size:12px;z-index:3000;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);';
+    banner.innerHTML = `
+      <span>📂 Tournoi sauvegardé trouvé · <strong>${session.params.nomTournoi}</strong> · ${session.savedAt}</span>
+      <button onclick="appliquerRestauration()" style="background:var(--or);color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:var(--mo);font-size:11px;font-weight:700;">↩ Restaurer</button>
+      <button onclick="document.getElementById('restore-banner').remove()" style="background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);padding:6px 10px;border-radius:6px;cursor:pointer;font-family:var(--mo);font-size:11px;">✕</button>
+    `;
+    document.body.appendChild(banner);
+  } catch(e) { console.error('Erreur restauration session:', e); }
+}
+
+function appliquerRestauration(){
+  try {
+    const raw = localStorage.getItem('jap_session');
+    if(!raw) return;
+    const session = JSON.parse(raw);
+
+    // Restaurer les paramètres
+    const p = session.params;
+    document.getElementById('nt').value = p.nomTournoi || '';
+    document.getElementById('sp').value = p.sponsor || '';
+    document.getElementById('dt').value = p.dt || '';
+    document.getElementById('hd').value = p.hd || '09:00';
+    document.getElementById('np').value = p.np || '2';
+    document.getElementById('dp').value = p.dp || '45';
+    document.getElementById('dc').value = p.dc || '45';
+    document.getElementById('niveau').value = p.niveau || 'P250';
+    onNiveauChange();
+
+    // Restaurer les données générées
+    genData = session.genData;
+    renTab(genData); renH(genData); renMsg(genData);
+    if(genData.alertes) renAlertes(genData.alertes);
+
+    document.getElementById('b-tab').disabled = false;
+    document.getElementById('b-fdr').disabled = false;
+    document.getElementById('b-csv').disabled = false;
+    document.getElementById('tw-box').style.display = 'block';
+    document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
+
+    document.getElementById('restore-banner').remove();
+    showToast('✅ Tournoi restauré !');
+  } catch(e) {
+    alert('Erreur restauration : ' + e.message);
+  }
+}
+
 function toggleTheme(){
   const root=document.documentElement;
   const btn=document.getElementById('theme-btn');
@@ -944,6 +1026,7 @@ function toggleTheme(){
 }
 if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
 loadTwilio();
+restaurerSession();
 </script>
 </body>
 </html>
