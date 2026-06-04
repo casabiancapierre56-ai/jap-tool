@@ -528,8 +528,17 @@ def generer():
             if adv_str: msg += f"\n Adversaires : {adv_str}"
             msg += "\n\nBonne chance !\n- Organisation Arena18"
 
-            tel_c = j['tel'].replace(' ','').lstrip('0')
-            tel_c = '33' + tel_c if tel_c and not tel_c.startswith('33') else tel_c
+            tel_raw = j['tel'].replace(' ','').replace('.','').replace('-','')
+            if tel_raw.startswith('+33'):
+                tel_c = tel_raw[1:]
+            elif tel_raw.startswith('0033'):
+                tel_c = tel_raw[2:]
+            elif tel_raw.startswith('33') and len(tel_raw) == 11:
+                tel_c = tel_raw
+            elif tel_raw.startswith('0') and len(tel_raw) == 10:
+                tel_c = '33' + tel_raw[1:]
+            else:
+                tel_c = tel_raw
             messages.append({
                 'prenom': j['pr'], 'nom': j['nm'],
                 'tel': j['tel'], 'telClean': tel_c,
