@@ -175,6 +175,7 @@ tr:hover td{background:var(--dk3);}
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
+    <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 Sauvegarder le tournoi (CSV)</button>
     <div class="tw-box" id="tw-box" style="display:none">
       <div class="stl">📱 Envoi SMS Twilio</div>
       <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
@@ -454,6 +455,7 @@ async function generer(){
     renTab(data); renH(data); renMsg(data);
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
+    document.getElementById('b-csv').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
@@ -653,6 +655,28 @@ function renMsg(d){
 }
 
 // ── RAZ ───────────────────────────────
+// ── Sauvegarde CSV ────────────────────
+function sauvegarderCSV(){
+  if(!genData)return;
+  const dt=document.getElementById('dt').value;
+  const nom=document.getElementById('nt').value;
+  // Reconstruire un CSV FFT-compatible
+  let csv='Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids\n';
+  genData.paires.forEach((p,i)=>{
+    csv+=`;P${i+1};;${p.nomJ1};${p.prenJ1};;${p.licJ1||''};;;; ${p.telJ1||''};${p.nomJ2};${p.prenJ2};;${p.licJ2||''};;;; ${p.telJ2||''};${p.poids}\n`;
+  });
+  // Télécharger
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const dateStr=dt?dt.replace(/-/g,''):'';
+  a.href=url;
+  a.download=`tournoi_${dateStr}_${nom.replace(/\s+/g,'_').substring(0,20)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 CSV sauvegardé — rechargez-le pour retrouver votre tournoi !');
+}
+
 function raz(){
   csvText=''; genData=null; pairesLoaded=[];
   document.getElementById('dz-ok').style.display='none';
@@ -660,6 +684,7 @@ function raz(){
   document.getElementById('bg').disabled=true;
   document.getElementById('b-tab').disabled=true;
   document.getElementById('b-fdr').disabled=true;
+  document.getElementById('b-csv').disabled=true;
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
   document.getElementById('contraintes-list').innerHTML='';
