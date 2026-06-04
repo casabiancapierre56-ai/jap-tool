@@ -177,9 +177,9 @@ tr:hover td{background:var(--dk3);}
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
     <div class="tw-box" id="tw-box" style="display:none">
       <div class="stl">📱 Envoi SMS Twilio</div>
-      <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx"/></div>
-      <div class="fi"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx"/></div>
-      <div class="fi"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx"/></div>
+      <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
+      <div class="fi"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
+      <div class="fi"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx" oninput="saveTwilio()"/></div>
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
@@ -896,6 +896,21 @@ function onNiveauChange(){
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
 onNiveauChange();
 
+// ── Twilio credentials persistence ──
+function saveTwilio(){
+  localStorage.setItem('tw_sid', document.getElementById('tw-sid').value);
+  localStorage.setItem('tw_tok', document.getElementById('tw-tok').value);
+  localStorage.setItem('tw_num', document.getElementById('tw-num').value);
+}
+function loadTwilio(){
+  const sid=localStorage.getItem('tw_sid');
+  const tok=localStorage.getItem('tw_tok');
+  const num=localStorage.getItem('tw_num');
+  if(sid) document.getElementById('tw-sid').value=sid;
+  if(tok) document.getElementById('tw-tok').value=tok;
+  if(num) document.getElementById('tw-num').value=num;
+}
+
 function toggleTheme(){
   const root=document.documentElement;
   const btn=document.getElementById('theme-btn');
@@ -903,6 +918,7 @@ function toggleTheme(){
   else{root.classList.add('light');btn.textContent='🌙 Mode sombre';localStorage.setItem('theme','light');}
 }
 if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
+loadTwilio();
 </script>
 </body>
 </html>
