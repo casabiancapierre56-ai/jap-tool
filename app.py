@@ -537,6 +537,8 @@ def generer():
                 tel_c = tel_raw
             elif tel_raw.startswith('0') and len(tel_raw) == 10:
                 tel_c = '33' + tel_raw[1:]
+            elif len(tel_raw) == 9 and not tel_raw.startswith('33'):
+                tel_c = '33' + tel_raw  # 685603907 → 33685603907
             else:
                 tel_c = tel_raw
             messages.append({
