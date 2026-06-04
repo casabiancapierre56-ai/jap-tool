@@ -664,7 +664,7 @@ def sms_reponse():
     REDIRECT_TO = '+33685603907'
     
     # Identifiants Twilio depuis variables d'environnement ou hardcodés
-    account_sid = os.environ.get('TWILIO_SID', 'AC48dc9c9d1f8ad60d142d23612c0abd27')
+    account_sid = os.environ.get('TWILIO_SID', '')
     auth_token  = os.environ.get('TWILIO_TOKEN', '')
     from_number = '+33939247914'
     
