@@ -603,21 +603,50 @@ function renH(d){
 }
 
 // ── RENDER MESSAGES ───────────────────
-let _msgs=[];
+let _msgs=[], _msgData=[];
 function copyMsg(i){
   navigator.clipboard.writeText(_msgs[i]).then(()=>{
     const btn=document.getElementById('copy-btn-'+i);
     if(btn){btn.textContent='✅';setTimeout(()=>btn.textContent='📋 Copier',2000);}
   });
 }
+async function envoyerSMSUn(i){
+  const sid=document.getElementById('tw-sid').value;
+  const tok=document.getElementById('tw-tok').value;
+  const num=document.getElementById('tw-num').value;
+  if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio en bas à gauche !');return;}
+  const m=_msgData[i];
+  if(!m){return;}
+  const btn=document.getElementById('sms-btn-'+i);
+  btn.disabled=true; btn.textContent='⏳';
+  try {
+    const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:[m],twilioSid:sid,twilioToken:tok,twilioFrom:num})});
+    const data=await r.json();
+    if(data.sent===1){
+      btn.textContent='✅';
+      btn.style.background='#1a4a2e';
+      btn.style.color='#4ade80';
+    } else {
+      btn.textContent='❌';
+      btn.disabled=false;
+      alert('Erreur : '+(data.results?.[0]?.reason||'inconnu'));
+    }
+  } catch(e){
+    btn.textContent='❌'; btn.disabled=false;
+    alert('Erreur : '+e.message);
+  }
+}
 function renMsg(d){
   _msgs=d.messages.map(m=>m.msg);
+  _msgData=d.messages;
   let h=`<div class="stl" style="margin-bottom:11px;">Messages convocation — ${d.messages.length} joueurs</div><div class="mg">`;
   d.messages.forEach((m,i)=>{
     const tsc=m.ts?(parseInt(m.ts.replace('TS',''))<=2?'a':parseInt(m.ts.replace('TS',''))<=4?'b':'c'):'';
     const telC=m.telClean;
     const wa=telC?`<a class="bs bw" href="https://wa.me/${telC}?text=${encodeURIComponent(m.msg)}" target="_blank">💬 WhatsApp</a>`:`<span class="bs bd2">Pas de N°</span>`;
-    h+=`<div class="mc"><div class="mh"><div><div class="mn">${m.prenom} ${m.nom.toUpperCase()}${m.ts?' — '+m.ts:''}</div><div class="mp">${m.tel||'N° non renseigné'}</div></div>${m.ts?`<span class="ts ${tsc}">${m.ts}</span>`:''}</div><div class="mb">${m.msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="ma"><button id="copy-btn-${i}" class="bs bc" onclick="copyMsg(${i})">📋 Copier</button>${wa}</div></div>`;
+    const smsBtn=telC?`<button id="sms-btn-${i}" class="bs bc" onclick="envoyerSMSUn(${i})" style="background:#1a2a3a;border-color:#1a5080;color:#60b0ff;">📤 SMS</button>`:`<span class="bs bd2">Pas de N°</span>`;
+    h+=`<div class="mc"><div class="mh"><div><div class="mn">${m.prenom} ${m.nom.toUpperCase()}${m.ts?' — '+m.ts:''}</div><div class="mp">${m.tel||'N° non renseigné'}</div></div>${m.ts?`<span class="ts ${tsc}">${m.ts}</span>`:''}</div><div class="mb">${m.msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="ma"><button id="copy-btn-${i}" class="bs bc" onclick="copyMsg(${i})">📋 Copier</button>${wa}${smsBtn}</div></div>`;
   });
   h+='</div>';
   document.getElementById('tm').innerHTML=h;
