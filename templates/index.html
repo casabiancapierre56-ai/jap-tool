@@ -89,14 +89,10 @@ tr:hover td{background:var(--dk3);}
 .alerte-count.error{background:#8a2020;color:#ffb0b0;}
 .alerte-count.warning{background:#8a5000;color:#ffd080;}
 .alerte-count.info{background:#1a5080;color:#a0d0ff;}
-
-/* ── BOUTONS ACTION TABLEAU ── */
 .btn-edit{background:none;border:1px solid var(--bd);color:var(--tx2);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:var(--mo);transition:all .15s;}
 .btn-edit:hover{border-color:var(--or);color:var(--or);}
 .btn-forfait{background:none;border:1px solid var(--bd);color:var(--tx2);border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:var(--mo);transition:all .15s;margin-left:4px;}
 .btn-forfait:hover{border-color:#c0392b;color:#e74c3c;}
-
-/* ── MODAL ── */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal{background:var(--dk2);border:1px solid var(--bd);border-radius:14px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;}
 .modal h2{font-size:15px;font-weight:700;margin-bottom:4px;}
@@ -121,11 +117,24 @@ tr:hover td{background:var(--dk3);}
 .choice-btn:hover{border-color:var(--or);background:#1f0f00;}
 .choice-btn span{display:block;font-size:9px;color:var(--tx2);margin-top:3px;}
 .warn-badge{display:inline-block;background:#3a1800;border:1px solid var(--am);color:var(--am);font-size:10px;font-family:var(--mo);padding:4px 10px;border-radius:6px;margin-bottom:12px;}
+/* ── ONGLET TOURNOIS ── */
+.t-card{background:var(--dk2);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;transition:all .2s;}
+.t-card:hover{border-color:var(--or);background:var(--dk3);}
+.t-card-info{flex:1;}
+.t-card-nom{font-size:13px;font-weight:700;margin-bottom:3px;}
+.t-card-meta{font-size:10px;color:var(--tx2);font-family:var(--mo);}
+.t-card-actions{display:flex;gap:6px;}
+.t-btn-load{background:var(--or);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-family:var(--mo);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.t-btn-load:hover{background:var(--orl);}
+.t-btn-del{background:none;border:1px solid #8a2020;color:#e74c3c;padding:6px 10px;border-radius:6px;font-family:var(--mo);font-size:11px;cursor:pointer;}
+.t-btn-del:hover{background:#2a0a0a;}
+.t-niveau{display:inline-block;font-size:9px;font-weight:700;background:var(--dk3);border:1px solid var(--bd);color:var(--or);padding:2px 7px;border-radius:3px;font-family:var(--mo);margin-left:6px;}
+.t-empty{text-align:center;padding:40px 20px;color:var(--tx2);font-family:var(--mo);font-size:12px;line-height:1.8;}
 </style>
 </head>
 <body>
 <div class="hdr">
-  <div class="badge">JAP Tool v2</div>
+  <div class="badge">JAP Tool v3</div>
   <h1>Tournoi Padel FFT — Arena18</h1>
   <span id="sb">En attente du CSV FFT</span>
   <button onclick="toggleTheme()" id="theme-btn" style="margin-left:12px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--mo);font-size:11px;font-weight:600;white-space:nowrap;">☀️ Mode clair</button>
@@ -175,7 +184,8 @@ tr:hover td{background:var(--dk3);}
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
-    <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 Sauvegarder le tournoi (CSV)</button>
+    <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 Exporter CSV</button>
+    <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Sauvegarder en base</button>
     <div class="tw-box" id="tw-box" style="display:none">
       <div class="stl">📱 Envoi SMS Twilio</div>
       <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
@@ -192,22 +202,21 @@ tr:hover td{background:var(--dk3);}
       <button class="tab on" onclick="st('tt')">Tableau</button>
       <button class="tab" onclick="st('th')">Horaires</button>
       <button class="tab" onclick="st('tm')">WhatsApp</button>
+      <button class="tab" onclick="st('ts2');chargerListeTournois()">📂 Tournois</button>
     </div>
     <div id="tt"><div class="empty"><div class="empty-i">🎾</div>Glisse le CSV FFT et clique Générer</div></div>
     <div id="th" style="display:none"><div class="empty"><div class="empty-i">🕐</div>Les horaires apparaîtront ici</div></div>
     <div id="tm" style="display:none"><div class="empty"><div class="empty-i">💬</div>Les messages apparaîtront ici</div></div>
+    <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL MODIFIER JOUEUR
-══════════════════════════════════════ -->
+<!-- MODAL MODIFIER JOUEUR -->
 <div class="modal-bg" id="modal-edit" style="display:none" onclick="if(event.target===this)closeModal('modal-edit')">
 <div class="modal">
   <h2>✏️ Modifier une paire</h2>
   <div class="modal-sub" id="edit-sub"></div>
   <div class="warn-badge">⚠️ Tableau déjà généré — modification hors règlement FFT si tableau affiché</div>
-
   <div class="modal-section">
     <div class="modal-section-title">👤 Joueur 1</div>
     <div class="modal-row2">
@@ -219,7 +228,6 @@ tr:hover td{background:var(--dk3);}
       <div class="modal-fi"><label>Téléphone</label><input id="e-tel1" placeholder="06XXXXXXXX"/></div>
     </div>
   </div>
-
   <div class="modal-section">
     <div class="modal-section-title">👤 Joueur 2</div>
     <div class="modal-row2">
@@ -231,7 +239,6 @@ tr:hover td{background:var(--dk3);}
       <div class="modal-fi"><label>Téléphone</label><input id="e-tel2" placeholder="06XXXXXXXX"/></div>
     </div>
   </div>
-
   <div class="modal-section">
     <div class="modal-section-title">🏆 Classement & Poids</div>
     <div class="modal-row2">
@@ -242,39 +249,27 @@ tr:hover td{background:var(--dk3);}
       <input id="e-poids" type="number" placeholder="Calculé automatiquement" style="border-color:var(--or);"/>
     </div>
   </div>
-
   <div class="modal-section">
     <div class="modal-section-title">⚙️ Type de modification</div>
-    <button class="choice-btn" onclick="appliquerModif('nom')">
-      ✏️ Remplacer le nom seulement
-      <span>Garde la même position dans le tableau. Juste les noms changent. Nouveau PDF + convocations.</span>
-    </button>
-    <button class="choice-btn" onclick="appliquerModif('recalcul')">
-      🔄 Recalculer tout le tableau
-      <span>Nouveau poids → nouveau tirage → nouveau tableau complet + convocations.</span>
-    </button>
+    <button class="choice-btn" onclick="appliquerModif('nom')">✏️ Remplacer le nom seulement<span>Garde la même position dans le tableau. Juste les noms changent. Nouveau PDF + convocations.</span></button>
+    <button class="choice-btn" onclick="appliquerModif('recalcul')">🔄 Recalculer tout le tableau<span>Nouveau poids → nouveau tirage → nouveau tableau complet + convocations.</span></button>
   </div>
-
   <div class="modal-actions">
     <button class="modal-btn cancel" onclick="closeModal('modal-edit')">Annuler</button>
   </div>
 </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL FORFAIT
-══════════════════════════════════════ -->
+<!-- MODAL FORFAIT -->
 <div class="modal-bg" id="modal-forfait" style="display:none" onclick="if(event.target===this)closeModal('modal-forfait')">
 <div class="modal">
   <h2>🗑️ Forfait paire</h2>
   <div class="modal-sub" id="forfait-sub"></div>
   <div class="warn-badge">⚠️ La paire sera retirée du tableau</div>
-
   <div class="modal-section" style="border:1px solid #8a2020;background:#2a0a0a;">
     <div class="modal-section-title" style="color:#ff8080;">Paire forfait</div>
     <div id="forfait-paire-info" style="font-size:12px;font-family:var(--mo);color:#ff8080;"></div>
   </div>
-
   <div class="modal-section">
     <div class="modal-section-title">➕ Nouvelle paire remplaçante (optionnel)</div>
     <div class="modal-row2">
@@ -297,27 +292,16 @@ tr:hover td{background:var(--dk3);}
       <div class="modal-fi"><label>Classement J1</label><input id="f-clt1" type="number" placeholder="ex: 6500" oninput="calcPoidsForfait()"/></div>
       <div class="modal-fi"><label>Classement J2</label><input id="f-clt2" type="number" placeholder="ex: 6000" oninput="calcPoidsForfait()"/></div>
     </div>
-    <div class="modal-fi"><label>Poids de la nouvelle paire <span style="color:var(--tx2);font-size:9px;">(= somme des 2 classements, calculé auto)</span></label>
+    <div class="modal-fi"><label>Poids de la nouvelle paire<span style="color:var(--tx2);font-size:9px;"> (= somme des 2 classements, calculé auto)</span></label>
       <input id="f-poids" type="number" placeholder="Calculé automatiquement" style="border-color:var(--or);"/>
     </div>
   </div>
-
   <div class="modal-section">
     <div class="modal-section-title">⚙️ Action</div>
-    <button class="choice-btn" onclick="appliquerForfait('meme')">
-      📌 Mettre la nouvelle paire à la même position
-      <span>Remplace directement dans le tableau. Nouveau PDF + convocations.</span>
-    </button>
-    <button class="choice-btn" onclick="appliquerForfait('recalcul')">
-      🔄 Recalculer tout le tableau avec la nouvelle paire
-      <span>Nouveau poids intégré → nouveau tirage complet + convocations.</span>
-    </button>
-    <button class="choice-btn" onclick="appliquerForfait('supprimer')" style="border-color:#8a2020;">
-      🗑️ Supprimer sans remplacer
-      <span style="color:#ff8080;">Retire la paire du tableau. Ne fonctionne que si liste ≥ 12 paires.</span>
-    </button>
+    <button class="choice-btn" onclick="appliquerForfait('meme')">📌 Mettre la nouvelle paire à la même position<span>Remplace directement dans le tableau. Nouveau PDF + convocations.</span></button>
+    <button class="choice-btn" onclick="appliquerForfait('recalcul')">🔄 Recalculer tout le tableau avec la nouvelle paire<span>Nouveau poids intégré → nouveau tirage complet + convocations.</span></button>
+    <button class="choice-btn" onclick="appliquerForfait('supprimer')" style="border-color:#8a2020;">🗑️ Supprimer sans remplacer<span style="color:#ff8080;">Retire la paire du tableau. Ne fonctionne que si liste ≥ 12 paires.</span></button>
   </div>
-
   <div class="modal-actions">
     <button class="modal-btn cancel" onclick="closeModal('modal-forfait')">Annuler</button>
   </div>
@@ -329,11 +313,10 @@ let csvText='', genData=null, pairesLoaded=[];
 let editPaireId=null, forfaitPaireId=null;
 
 function st(n){
-  ['tt','th','tm'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm'][i]===n));
+  ['tt','th','tm','ts2'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm','ts2'][i]===n));
 }
 
-// ── CSV ───────────────────────────────
 function loadFile(file){
   if(!file)return;
   const r=new FileReader();
@@ -425,7 +408,6 @@ dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');}
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f){document.getElementById('fi-csv').files=e.dataTransfer.files;loadFile(f);}});
 
-// ── GÉNÉRATION ────────────────────────
 async function generer(){
   if(!csvText){alert('Charge le CSV d\'abord !');return;}
   const btn=document.getElementById('bg');
@@ -457,6 +439,7 @@ async function generer(){
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
     document.getElementById('b-csv').disabled=false;
+    document.getElementById('b-db').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
@@ -464,7 +447,6 @@ async function generer(){
   finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
 }
 
-// ── PDF ───────────────────────────────
 async function dlPdf(type){
   if(!genData)return;
   const btn=document.getElementById(type==='tableau'?'b-tab':'b-fdr');
@@ -494,7 +476,6 @@ async function dlPdf(type){
   finally { btn.disabled=false; btn.textContent=orig; }
 }
 
-// ── SMS ───────────────────────────────
 async function envoyerSMS(){
   if(!genData?.messages)return;
   const sid=document.getElementById('tw-sid').value;
@@ -515,7 +496,6 @@ async function envoyerSMS(){
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
 }
 
-// ── ALERTES ───────────────────────────
 function renAlertes(alertes){
   if(!alertes||!alertes.length){const old=document.getElementById('alertes-panel');if(old)old.remove();return;}
   const errors=alertes.filter(a=>a.level==='error');
@@ -540,7 +520,6 @@ function renAlertes(alertes){
   tabDiv.insertAdjacentHTML('afterbegin',h);
 }
 
-// ── RENDER TABLEAU ────────────────────
 function renTab(d){
   const contraintes=getContraintes();
   let h='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">';
@@ -586,7 +565,6 @@ function slH(s){
   return`<div class="${cls}">${badge}<span class="sl-n">${p?.prenJ1||''} ${p?.nomJ1||''} / ${p?.prenJ2||''} ${p?.nomJ2||''}</span><span style="font-size:9px;color:var(--tx2);">${p?.poids||''}</span>${extra}${editBtn}</div>`;
 }
 
-// ── RENDER HORAIRES ───────────────────
 function renH(d){
   const dp=document.getElementById('dp').value;
   const dc=document.getElementById('dc').value;
@@ -605,7 +583,6 @@ function renH(d){
   document.getElementById('th').innerHTML=h;
 }
 
-// ── RENDER MESSAGES ───────────────────
 let _msgs=[], _msgData=[];
 function copyMsg(i){
   navigator.clipboard.writeText(_msgs[i]).then(()=>{
@@ -619,7 +596,7 @@ async function envoyerSMSUn(i){
   const num=document.getElementById('tw-num').value;
   if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio en bas à gauche !');return;}
   const m=_msgData[i];
-  if(!m){return;}
+  if(!m)return;
   const btn=document.getElementById('sms-btn-'+i);
   btn.disabled=true; btn.textContent='⏳';
   try {
@@ -627,18 +604,12 @@ async function envoyerSMSUn(i){
       body:JSON.stringify({messages:[m],twilioSid:sid,twilioToken:tok,twilioFrom:num})});
     const data=await r.json();
     if(data.sent===1){
-      btn.textContent='✅';
-      btn.style.background='#1a4a2e';
-      btn.style.color='#4ade80';
+      btn.textContent='✅'; btn.style.background='#1a4a2e'; btn.style.color='#4ade80';
     } else {
-      btn.textContent='❌';
-      btn.disabled=false;
+      btn.textContent='❌'; btn.disabled=false;
       alert('Erreur : '+(data.results?.[0]?.reason||'inconnu'));
     }
-  } catch(e){
-    btn.textContent='❌'; btn.disabled=false;
-    alert('Erreur : '+e.message);
-  }
+  } catch(e){ btn.textContent='❌'; btn.disabled=false; alert('Erreur : '+e.message); }
 }
 function renMsg(d){
   _msgs=d.messages.map(m=>m.msg);
@@ -655,18 +626,14 @@ function renMsg(d){
   document.getElementById('tm').innerHTML=h;
 }
 
-// ── RAZ ───────────────────────────────
-// ── Sauvegarde CSV ────────────────────
 function sauvegarderCSV(){
   if(!genData)return;
   const dt=document.getElementById('dt').value;
   const nom=document.getElementById('nt').value;
-  // Reconstruire un CSV FFT-compatible
   let csv='Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids\n';
   genData.paires.forEach((p,i)=>{
     csv+=`;P${i+1};;${p.nomJ1};${p.prenJ1};;${p.licJ1||''};;;; ${p.telJ1||''};${p.nomJ2};${p.prenJ2};;${p.licJ2||''};;;; ${p.telJ2||''};${p.poids}\n`;
   });
-  // Télécharger
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -675,7 +642,7 @@ function sauvegarderCSV(){
   a.download=`tournoi_${dateStr}_${nom.replace(/\s+/g,'_').substring(0,20)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('💾 CSV sauvegardé — rechargez-le pour retrouver votre tournoi !');
+  showToast('💾 CSV exporté !');
 }
 
 function raz(){
@@ -686,6 +653,7 @@ function raz(){
   document.getElementById('b-tab').disabled=true;
   document.getElementById('b-fdr').disabled=true;
   document.getElementById('b-csv').disabled=true;
+  document.getElementById('b-db').disabled=true;
   localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
@@ -721,11 +689,8 @@ function appliquerModif(mode){
   if(!genData||!editPaireId)return;
   const idx=genData.paires.findIndex(x=>x.id===editPaireId);
   if(idx===-1)return;
-
   const ancienPoids=genData.paires[idx].poids;
   const nouveauPoids=parseInt(document.getElementById('e-poids').value)||ancienPoids;
-
-  // Mettre à jour la paire
   genData.paires[idx]={
     ...genData.paires[idx],
     prenJ1:document.getElementById('e-pren1').value,
@@ -740,15 +705,10 @@ function appliquerModif(mode){
     nc:document.getElementById('e-nom1').value.toUpperCase()+' / '+document.getElementById('e-nom2').value.toUpperCase(),
     nf:document.getElementById('e-pren1').value+' '+document.getElementById('e-nom1').value+' / '+document.getElementById('e-pren2').value+' '+document.getElementById('e-nom2').value,
   };
-
   closeModal('modal-edit');
-
   if(mode==='recalcul'){
-    // Rebuilder le CSV modifié et regénérer
     regenererAvecPaires(genData.paires);
   } else {
-    // Juste mettre à jour l'affichage et les messages
-    // Mettre à jour aussi dans tableau et matchs
     mettreAJourRefs(editPaireId, genData.paires[idx]);
     renTab(genData); renH(genData); renMsg(genData);
     if(genData.alertes) renAlertes(genData.alertes);
@@ -757,20 +717,12 @@ function appliquerModif(mode){
 }
 
 function mettreAJourRefs(id, nouvellePaire){
-  // Mettre à jour dans tableau
-  genData.tableau.forEach(s=>{
-    if(s[1]&&s[1].id===id) Object.assign(s[1],nouvellePaire);
-  });
-  // Mettre à jour dans matchs
+  genData.tableau.forEach(s=>{if(s[1]&&s[1].id===id) Object.assign(s[1],nouvellePaire);});
   genData.matchs.forEach(m=>{
     if(m.pA&&m.pA.id===id) Object.assign(m.pA,nouvellePaire);
     if(m.pB&&m.pB.id===id) Object.assign(m.pB,nouvellePaire);
   });
-  // Mettre à jour dans messages
-  genData.messages.forEach(msg=>{
-    if(msg.paire===nouvellePaire.nf) msg.paire=nouvellePaire.nf;
-  });
-  // Mettre à jour qfMap
+  genData.messages.forEach(msg=>{if(msg.paire===nouvellePaire.nf) msg.paire=nouvellePaire.nf;});
   Object.keys(genData.qfMap).forEach(k=>{
     if(genData.qfMap[k]&&genData.paires.find(p=>p.id===id)){
       const p=genData.paires.find(p=>p.id===id);
@@ -790,7 +742,6 @@ function ouvrirForfait(paireId){
   forfaitPaireId=paireId;
   document.getElementById('forfait-sub').textContent=`Paire #${paireId}${p.ts?' ('+p.ts+')':''}`;
   document.getElementById('forfait-paire-info').textContent=`${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2} — Poids: ${p.poids}`;
-  // Vider les champs
   ['f-pren1','f-nom1','f-lic1','f-tel1','f-pren2','f-nom2','f-lic2','f-tel2','f-clt1','f-clt2','f-poids'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('modal-forfait').style.display='flex';
 }
@@ -799,12 +750,10 @@ function appliquerForfait(mode){
   if(!genData||!forfaitPaireId)return;
   const idx=genData.paires.findIndex(x=>x.id===forfaitPaireId);
   if(idx===-1)return;
-
   const nvPren1=document.getElementById('f-pren1').value.trim();
   const nvNom1=document.getElementById('f-nom1').value.trim();
   const nvPoids=parseInt(document.getElementById('f-poids').value)||0;
   const aNouvellepaire=nvPren1&&nvNom1&&nvPoids;
-
   if(mode==='supprimer'){
     if(genData.paires.length<=12){alert('Il faut au moins 12 paires pour supprimer sans remplacer.');return;}
     genData.paires.splice(idx,1);
@@ -813,9 +762,7 @@ function appliquerForfait(mode){
     regenererAvecPaires(genData.paires);
     return;
   }
-
   if(!aNouvellepaire){alert('Remplis au moins Prénom J1, Nom J1 et le Poids pour la nouvelle paire.');return;}
-
   const nouvellePaire={
     id:forfaitPaireId,
     prenJ1:nvPren1, nomJ1:nvNom1,
@@ -829,14 +776,11 @@ function appliquerForfait(mode){
     nc:nvNom1.toUpperCase()+' / '+(document.getElementById('f-nom2').value||'?').toUpperCase(),
     nf:nvPren1+' '+nvNom1+' / '+(document.getElementById('f-pren2').value||'')+' '+(document.getElementById('f-nom2').value||''),
   };
-
   closeModal('modal-forfait');
-
   if(mode==='recalcul'){
     genData.paires[idx]=nouvellePaire;
     regenererAvecPaires(genData.paires);
   } else {
-    // Même position
     genData.paires[idx]=nouvellePaire;
     mettreAJourRefs(forfaitPaireId, nouvellePaire);
     renTab(genData); renH(genData); renMsg(genData);
@@ -844,26 +788,16 @@ function appliquerForfait(mode){
   }
 }
 
-// ── Régénérer avec les paires modifiées ──
 async function regenererAvecPaires(paires){
-  // Reconstruire un CSV synthétique à partir des paires modifiées
-  // En fait on appelle /generer avec les paires directement via un CSV reconstruit
-  // Mais le plus simple : appeler generer() avec le csvText modifié
-  // → On reconstruit le csvText à partir des paires actuelles
-
   showToast('⏳ Recalcul du tableau en cours...');
-
-  // Construire un pseudo-CSV FFT
   let csv='Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids\n';
   paires.forEach((p,i)=>{
     csv+=`;P${i+1};;${p.nomJ1};${p.prenJ1};;${p.licJ1||''};;;; ${p.telJ1||''};${p.nomJ2};${p.prenJ2};;${p.licJ2||''};;;; ${p.telJ2||''};${p.poids}\n`;
   });
   csvText=csv;
-
   await generer();
 }
 
-// ── Toast notification ──
 function showToast(msg){
   let t=document.getElementById('toast');
   if(!t){
@@ -878,7 +812,6 @@ function showToast(msg){
   t._to=setTimeout(()=>t.style.opacity='0',3000);
 }
 
-// ── Calcul auto poids ──
 function calcPoidsEdit(){
   const c1=parseInt(document.getElementById('e-clt1').value)||0;
   const c2=parseInt(document.getElementById('e-clt2').value)||0;
@@ -890,11 +823,8 @@ function calcPoidsForfait(){
   if(c1&&c2) document.getElementById('f-poids').value=c1+c2;
 }
 
-function closeModal(id){
-  document.getElementById(id).style.display='none';
-}
+function closeModal(id){document.getElementById(id).style.display='none';}
 
-// ── FORMATS PAR NIVEAU ───────────────
 const FORMATS_NIVEAUX={
   P25:{principal:[{val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux, NO-AD ⚡'},{val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux ⚡'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],classement:[{val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F ⚡ Conseillé'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],note:'P25 — Formats E ou F conseillés'},
   P100:{principal:[{val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux, NO-AD ⚡'},{val:'F : 1 set 4 jeux, NO-AD',label:'F ⚡'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'}],classement:[{val:'F : 1 set 4 jeux, NO-AD',label:'F ⚡ Conseillé'},{val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif'},{val:'D2 : 1 set 9 jeux, NO-AD',label:'D2'}],note:'P100 — Formats E ou F conseillés'},
@@ -923,7 +853,6 @@ function onNiveauChange(){
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
 onNiveauChange();
 
-// ── Twilio credentials persistence ──
 function saveTwilio(){
   localStorage.setItem('tw_sid', document.getElementById('tw-sid').value);
   localStorage.setItem('tw_tok', document.getElementById('tw-tok').value);
@@ -938,7 +867,6 @@ function loadTwilio(){
   if(num) document.getElementById('tw-num').value=num;
 }
 
-// ── Sauvegarde session automatique ──
 function sauvegarderSession(){
   if(!genData) return;
   try {
@@ -968,13 +896,11 @@ function restaurerSession(){
     if(!raw) return;
     const session = JSON.parse(raw);
     if(!session.genData) return;
-
-    // Afficher bannière de restauration
     const banner = document.createElement('div');
     banner.id = 'restore-banner';
     banner.style = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--dk2);border:1px solid var(--or);color:var(--tx);padding:14px 20px;border-radius:10px;font-family:var(--mo);font-size:12px;z-index:3000;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);';
     banner.innerHTML = `
-      <span>📂 Tournoi sauvegardé trouvé · <strong>${session.params.nomTournoi}</strong> · ${session.savedAt}</span>
+      <span>📂 Session locale trouvée · <strong>${session.params.nomTournoi}</strong> · ${session.savedAt}</span>
       <button onclick="appliquerRestauration()" style="background:var(--or);color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:var(--mo);font-size:11px;font-weight:700;">↩ Restaurer</button>
       <button onclick="document.getElementById('restore-banner').remove()" style="background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);padding:6px 10px;border-radius:6px;cursor:pointer;font-family:var(--mo);font-size:11px;">✕</button>
     `;
@@ -987,8 +913,6 @@ function appliquerRestauration(){
     const raw = localStorage.getItem('jap_session');
     if(!raw) return;
     const session = JSON.parse(raw);
-
-    // Restaurer les paramètres
     const p = session.params;
     document.getElementById('nt').value = p.nomTournoi || '';
     document.getElementById('sp').value = p.sponsor || '';
@@ -999,23 +923,18 @@ function appliquerRestauration(){
     document.getElementById('dc').value = p.dc || '45';
     document.getElementById('niveau').value = p.niveau || 'P250';
     onNiveauChange();
-
-    // Restaurer les données générées
     genData = session.genData;
     renTab(genData); renH(genData); renMsg(genData);
     if(genData.alertes) renAlertes(genData.alertes);
-
     document.getElementById('b-tab').disabled = false;
     document.getElementById('b-fdr').disabled = false;
     document.getElementById('b-csv').disabled = false;
+    document.getElementById('b-db').disabled  = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
-
     document.getElementById('restore-banner').remove();
-    showToast('✅ Tournoi restauré !');
-  } catch(e) {
-    alert('Erreur restauration : ' + e.message);
-  }
+    showToast('✅ Session restaurée !');
+  } catch(e) { alert('Erreur restauration : ' + e.message); }
 }
 
 function toggleTheme(){
@@ -1027,6 +946,155 @@ function toggleTheme(){
 if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
 loadTwilio();
 restaurerSession();
+
+// ══════════════════════════════════════
+// SYSTÈME TOURNOIS SQLITE
+// ══════════════════════════════════════
+
+async function sauvegarderEnBase(){
+  if(!genData) return;
+  const btn = document.getElementById('b-db');
+  btn.disabled = true; btn.textContent = '⏳ Sauvegarde...';
+  try {
+    const dt = document.getElementById('dt').value;
+    const r = await fetch('/tournoi/sauvegarder', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        nom:      document.getElementById('nt').value,
+        dateStr:  dt,
+        nbPaires: genData.paires.length,
+        niveau:   document.getElementById('niveau').value,
+        genData:  genData,
+        params: {
+          nomTournoi: document.getElementById('nt').value,
+          sponsor:    document.getElementById('sp').value,
+          dt,
+          hd:    document.getElementById('hd').value,
+          np:    document.getElementById('np').value,
+          dp:    document.getElementById('dp').value,
+          dc:    document.getElementById('dc').value,
+          fg:    document.getElementById('fg').value,
+          fgCls: document.getElementById('fg-cls').value,
+          niveau:document.getElementById('niveau').value,
+        }
+      })
+    });
+    const data = await r.json();
+    if(data.ok){
+      showToast(`✅ ${data.message}`);
+      btn.textContent = '✅ Sauvegardé !';
+      btn.style.borderColor = 'var(--gr)';
+      btn.style.color = 'var(--gr)';
+      setTimeout(()=>{
+        btn.textContent = '🗄️ Sauvegarder en base';
+        btn.style.borderColor = 'var(--or)';
+        btn.style.color = 'var(--or)';
+        btn.disabled = false;
+      }, 3000);
+    } else {
+      throw new Error(data.error || 'Erreur inconnue');
+    }
+  } catch(e) {
+    alert('Erreur sauvegarde : ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '🗄️ Sauvegarder en base';
+  }
+}
+
+async function chargerListeTournois(){
+  const el = document.getElementById('ts2');
+  el.innerHTML = '<div class="t-empty">⏳ Chargement...</div>';
+  try {
+    const r = await fetch('/tournoi/liste');
+    const tournois = await r.json();
+    if(!tournois.length){
+      el.innerHTML = '<div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Aucun tournoi sauvegardé<br><span style="font-size:10px;opacity:.7;">Génère un tableau puis clique sur<br>🗄️ Sauvegarder en base</span></div>';
+      return;
+    }
+    let h = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="stl" style="margin:0;">🗄️ ${tournois.length} tournoi${tournois.length>1?'s':''} sauvegardé${tournois.length>1?'s':''}</div>
+    </div>`;
+    tournois.forEach(t => {
+      const dateAff = t.date_str ? ` · ${t.date_str}` : '';
+      const niveauBadge = t.niveau ? `<span class="t-niveau">${t.niveau}</span>` : '';
+      h += `<div class="t-card">
+        <div style="font-size:28px;opacity:.5;">🎾</div>
+        <div class="t-card-info">
+          <div class="t-card-nom">${t.nom}${niveauBadge}</div>
+          <div class="t-card-meta">${t.nb_paires} paires${dateAff} · Sauvegardé le ${t.cree_le}</div>
+        </div>
+        <div class="t-card-actions">
+          <button class="t-btn-load" onclick="chargerTournoi(${t.id})">↩ Restaurer</button>
+          <button class="t-btn-del" onclick="supprimerTournoi(${t.id}, this)" title="Supprimer">🗑</button>
+        </div>
+      </div>`;
+    });
+    el.innerHTML = h;
+  } catch(e) {
+    el.innerHTML = `<div class="t-empty" style="color:#e74c3c;">❌ Erreur : ${e.message}</div>`;
+  }
+}
+
+async function chargerTournoi(tid){
+  showToast('⏳ Chargement du tournoi...');
+  try {
+    const r = await fetch(`/tournoi/charger/${tid}`);
+    const t = await r.json();
+    if(t.error){ alert(t.error); return; }
+    const session = t.data;
+    const p = session.params;
+    if(p.niveau){ document.getElementById('niveau').value = p.niveau; onNiveauChange(); }
+    document.getElementById('nt').value = p.nomTournoi || '';
+    document.getElementById('sp').value = p.sponsor || '';
+    document.getElementById('dt').value = p.dt || '';
+    document.getElementById('hd').value = p.hd || '09:00';
+    document.getElementById('np').value = p.np || '2';
+    document.getElementById('dp').value = p.dp || '45';
+    document.getElementById('dc').value = p.dc || '45';
+    if(p.fg){
+      const fgSel = document.getElementById('fg');
+      let found = false;
+      for(let i=0;i<fgSel.options.length;i++){
+        if(fgSel.options[i].value===p.fg){fgSel.selectedIndex=i;found=true;break;}
+      }
+      if(!found){const o=document.createElement('option');o.value=p.fg;o.textContent=p.fg;fgSel.appendChild(o);fgSel.value=p.fg;}
+    }
+    if(p.fgCls){
+      const fgcSel = document.getElementById('fg-cls');
+      let found = false;
+      for(let i=0;i<fgcSel.options.length;i++){
+        if(fgcSel.options[i].value===p.fgCls){fgcSel.selectedIndex=i;found=true;break;}
+      }
+      if(!found){const o=document.createElement('option');o.value=p.fgCls;o.textContent=p.fgCls;fgcSel.appendChild(o);fgcSel.value=p.fgCls;}
+    }
+    genData = session.genData;
+    renTab(genData); renH(genData); renMsg(genData);
+    if(genData.alertes) renAlertes(genData.alertes);
+    document.getElementById('b-tab').disabled = false;
+    document.getElementById('b-fdr').disabled = false;
+    document.getElementById('b-csv').disabled = false;
+    document.getElementById('b-db').disabled  = false;
+    document.getElementById('tw-box').style.display = 'block';
+    document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré depuis base · ${t.cree_le}`;
+    sauvegarderSession();
+    st('tt');
+    showToast(`✅ "${t.nom}" restauré !`);
+  } catch(e) { alert('Erreur chargement : ' + e.message); }
+}
+
+async function supprimerTournoi(tid, btn){
+  if(!confirm('Supprimer ce tournoi définitivement ?')) return;
+  try {
+    const r = await fetch(`/tournoi/supprimer/${tid}`, {method:'DELETE'});
+    const d = await r.json();
+    if(d.ok){
+      btn.closest('.t-card').remove();
+      showToast('🗑️ Tournoi supprimé');
+      if(!document.querySelectorAll('#ts2 .t-card').length) chargerListeTournois();
+    }
+  } catch(e) { alert('Erreur suppression : ' + e.message); }
+}
 </script>
 </body>
 </html>
