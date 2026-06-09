@@ -194,6 +194,7 @@ tr:hover td{background:var(--dk3);}
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
+    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsApp()" disabled style="border-color:#25D366;color:#25D366;margin-top:5px;">💬 Envoyer tous les WhatsApp</button>
     <button class="btn btn2" onclick="raz()" style="margin-top:8px;">↺ Réinitialiser</button>
   </div>
 
@@ -440,6 +441,7 @@ async function generer(){
     document.getElementById('b-fdr').disabled=false;
     document.getElementById('b-csv').disabled=false;
     document.getElementById('b-db').disabled=false;
+    document.getElementById('b-wa').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
@@ -654,6 +656,7 @@ function raz(){
   document.getElementById('b-fdr').disabled=true;
   document.getElementById('b-csv').disabled=true;
   document.getElementById('b-db').disabled=true;
+  document.getElementById('b-wa').disabled=true;
   localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
@@ -930,6 +933,7 @@ function appliquerRestauration(){
     document.getElementById('b-fdr').disabled = false;
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
+    document.getElementById('b-wa').disabled  = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
     document.getElementById('restore-banner').remove();
@@ -1075,6 +1079,7 @@ async function chargerTournoi(tid){
     document.getElementById('b-fdr').disabled = false;
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
+    document.getElementById('b-wa').disabled  = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré depuis base · ${t.cree_le}`;
     sauvegarderSession();
@@ -1095,6 +1100,38 @@ async function supprimerTournoi(tid, btn){
     }
   } catch(e) { alert('Erreur suppression : ' + e.message); }
 }
+
+// ══════════════════════════════════════
+// WHATSAPP EN MASSE
+// ══════════════════════════════════════
+function envoyerTousWhatsApp(){
+  if(!_msgData||!_msgData.length){alert('Génère le tableau d\'abord !');return;}
+  const valides = _msgData.filter(m=>m.telClean);
+  if(!valides.length){alert('Aucun numéro valide trouvé.');return;}
+
+  if(!confirm('Ouvrir ' + valides.length + ' conversations WhatsApp ?\n\nChaque lien s\'ouvrira dans un nouvel onglet.\nAutorise les popups si ton navigateur le demande.')) return;
+
+  const btn = document.getElementById('b-wa');
+  btn.disabled = true;
+  btn.textContent = '⏳ Ouverture en cours...';
+
+  let i = 0;
+  const interval = setInterval(()=>{
+    if(i >= valides.length){
+      clearInterval(interval);
+      btn.disabled = false;
+      btn.textContent = '💬 Envoyer tous les WhatsApp';
+      showToast('✅ ' + valides.length + ' WhatsApp ouverts !');
+      return;
+    }
+    const m = valides[i];
+    const url = 'https://wa.me/' + m.telClean + '?text=' + encodeURIComponent(m.msg);
+    window.open(url, '_blank');
+    btn.textContent = '⏳ ' + (i+1) + '/' + valides.length + '...';
+    i++;
+  }, 1200);
+}
+
 </script>
 </body>
 </html>
