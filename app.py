@@ -1,16 +1,42 @@
 #!/usr/bin/env python3
 """
-JAP Tool v2 — Application web Padel FFT
+JAP Tool v3 — Application web Padel FFT
 Arena18 — jap.myconvi.fr
 """
 from flask import Flask, request, jsonify, render_template, send_file
-import io, json, base64, random, os
+import io, json, base64, random, os, sqlite3
+from datetime import datetime
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 
 app = Flask(__name__)
+
+# ── SQLite ───────────────────────────────
+DB_PATH = os.path.join(os.path.dirname(__file__), 'tournois.db')
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    with get_db() as conn:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS tournois (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom       TEXT NOT NULL,
+                date_str  TEXT,
+                nb_paires INTEGER,
+                niveau    TEXT,
+                data_json TEXT NOT NULL,
+                cree_le   TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+
+init_db()
 
 # ── PDF vierge FFT ───────────────────────
 PDF_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'tableau16_b64.txt')
@@ -258,30 +284,21 @@ X_EQ_END   = 420
 def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(FW, FH))
-
-    # Date
     c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(60, 781, date_str.upper() if date_str else '')
-
-    # Terrains matchs 1 et 2
     c.setFont("Helvetica-Bold", 8)
     c.setFillColorRGB(0, 0, 0)
     c.drawCentredString(527, 714, "DECATHLON")
     c.drawCentredString(527, 685, "CUPRA")
-
     max_w = X_EQ_END - X_EQ_START - 8
-
     for m in matchs:
         num = m['num']
         y = MATCH_Y_FDR.get(num)
         if not y:
             continue
-
         fs = 8.5
-
         if num <= 4:
-            # Matchs 1-4 : PaireA     PaireB sur une ligne
             if m.get('pA') and m.get('pB'):
                 pa, pb = m['pA'], m['pB']
                 ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']}"
@@ -292,9 +309,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
                     fs -= 0.2
                 c.setFillColorRGB(0, 0, 0)
                 c.drawString(X_EQ_START, y, texte)
-
         elif num in (7, 8, 9, 10):
-            # QF : TS qualifiée alignée à droite en rouge
             if m.get('pB'):
                 pb = m['pB']
                 ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
@@ -304,10 +319,8 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
                 c.setFillColorRGB(0.75, 0.1, 0.05)
                 c.drawRightString(X_EQ_END, y - 7, ts_str)
                 c.setFillColorRGB(0, 0, 0)
-
     c.save()
     packet.seek(0)
-
     fdr_b64 = get_fdr_b64()
     if not fdr_b64:
         raise FileNotFoundError("Modele feuille de route non trouve")
@@ -325,10 +338,8 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
 # ── Validation règlement FFT ─────────────
 def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
     alertes = []
-
     if len(paires) < 4:
         alertes.append({'level':'error', 'message': f'Minimum 4 paires requises ({len(paires)} trouvees)'})
-
     lm = {}
     for p in paires:
         for l in [p.get('licJ1',''), p.get('licJ2','')]:
@@ -338,24 +349,20 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
                 alertes.append({'level':'error', 'message': f'Doublon de licence : {l}'})
             else:
                 lm[lu] = True
-
     formats_autorises = ['A1','A2','B1','B2','C1','C2','D1','D2','E','F']
     fmt_upper = format_jeu.upper()
     if not any(f in fmt_upper for f in formats_autorises):
         alertes.append({'level':'error', 'message': f'Format principal non reconnu : {format_jeu}'})
-
     if format_jeu_classement and format_jeu_classement != format_jeu:
         fmt_cls = format_jeu_classement.upper()
         if not any(f in fmt_cls for f in formats_autorises):
             alertes.append({'level':'error', 'message': f'Format classement non reconnu : {format_jeu_classement}'})
         else:
             alertes.append({'level':'info', 'message': f'Formats differents : Principal={format_jeu[:25]} | Classement={format_jeu_classement[:25]}'})
-
     if duree_principal < 30:
         alertes.append({'level':'warning', 'message': f'Duree match principal courte ({duree_principal} min)'})
     if duree_classement < 20:
         alertes.append({'level':'warning', 'message': f'Duree match classement courte ({duree_classement} min)'})
-
     h_debut_min = hm_to_min(heure_debut)
     duree_totale = 11 * max(duree_principal, duree_classement)
     h_fin_min = h_debut_min + duree_totale
@@ -363,49 +370,16 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
         alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee apres minuit ({min_to_hm(h_fin_min)})'})
     elif h_fin_min > 22*60:
         alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee a {min_to_hm(h_fin_min)}'})
-
     if duree_classement >= 45 and duree_principal >= 45:
         alertes.append({'level':'warning', 'message': 'Pour gagner du temps : Format F conseille pour les matchs de classement (~20 min)'})
-
     if len(paires) % 2 != 0:
         alertes.append({'level':'warning', 'message': f'Nombre de paires impair ({len(paires)})'})
-
     sans_lic = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
     if sans_lic:
         noms = ', '.join([p['nf'] for p in sans_lic[:3]])
         alertes.append({'level':'warning', 'message': f'Licence manquante : {noms}'})
-
-    if contraintes and len(paires) >= 8:
-        h_18_v1 = h_debut_min
-        h_18_v2 = h_debut_min + duree_principal
-        h_qf_v1 = h_debut_min + duree_principal * 2 + duree_classement
-        h_qf_v2 = h_qf_v1 + duree_principal
-
-        for pid, heure_c in contraintes.items():
-            hc_min = hm_to_min(heure_c)
-            p = next((pp for pp in paires if str(pp['id'])==str(pid)), None)
-            if not p: continue
-            idx = next((i for i,pp in enumerate(paires) if pp['id']==p['id']), 99)
-            est_bye = idx < 4
-
-            if est_bye:
-                if hc_min > h_qf_v2:
-                    alertes.append({'level':'error', 'message': f'{p["nf"]} ({p["ts"]}) a un BYE mais disponible a {heure_c} apres la fin des QF. Impossible.'})
-                elif hc_min > h_qf_v1:
-                    alertes.append({'level':'warning', 'message': f'{p["nf"]} ({p["ts"]}) BYE - sera place en QF vague 2 ({min_to_hm(h_qf_v1+duree_principal)})'})
-                else:
-                    alertes.append({'level':'info', 'message': f'{p["nf"]} ({p["ts"]}) BYE - contrainte {heure_c} compatible avec les QF'})
-            else:
-                if hc_min > h_18_v2 + duree_principal:
-                    alertes.append({'level':'error', 'message': f'{p["nf"]} doit jouer un 1/8 mais disponible a {heure_c} apres la fin des 1/8.'})
-                elif hc_min > h_18_v1 + duree_principal // 2:
-                    alertes.append({'level':'warning', 'message': f'{p["nf"]} disponible a {heure_c} - sera place en 1/8 vague 2 ({min_to_hm(h_18_v2)})'})
-                else:
-                    alertes.append({'level':'info', 'message': f'{p["nf"]} - contrainte {heure_c} compatible'})
-
     alertes.append({'level':'info', 'message': f'Balles neuves : matchs 1,2,7,8,15,16,20 - prevoir {7*3} balles minimum'})
     alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
-
     return alertes
 
 # ── Routes Flask ─────────────────────────
@@ -514,29 +488,21 @@ def generer():
         h_conv = sub_min(h_m, 15) if h_m != '?' else '?'
         adv_str = f"{adv['prenJ1']} {adv['nomJ1']} / {adv['prenJ2']} {adv['nomJ2']}" if adv else ''
 
-        contrainte_info = ''
-        if str(p['id']) in contraintes:
-            contrainte_info = f"\n Disponible a partir de {contraintes[str(p['id'])]}h"
-
         for j in [{'pr':p['prenJ1'],'nm':p['nomJ1'],'tel':p['telJ1']},
                   {'pr':p['prenJ2'],'nm':p['nomJ2'],'tel':p['telJ2']}]:
 
-            # Ligne d'entrée en lice
             if is_bye:
                 entree = "🔥 Entrée en lice directement en Quart de Finale"
             else:
                 entree = f"🔥 Entrée en lice en {tour}"
 
-            # TS + BYE
             ts_line = ''
             if p['ts']: ts_line += f"\n⭐ {p['ts']}"
             if is_bye:  ts_line += " ✅ Exempt du 1er tour"
 
-            # Adversaires
             adv_line = ''
             if adv_str: adv_line = f"\n🆚 Adversaires : {adv_str}"
 
-            # Contrainte
             if str(p['id']) in contraintes:
                 contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
             else:
@@ -573,7 +539,7 @@ def generer():
             elif tel_raw.startswith('0') and len(tel_raw) == 10:
                 tel_c = '33' + tel_raw[1:]
             elif len(tel_raw) == 9 and not tel_raw.startswith('33'):
-                tel_c = '33' + tel_raw  # 685603907 → 33685603907
+                tel_c = '33' + tel_raw
             else:
                 tel_c = tel_raw
             messages.append({
@@ -593,6 +559,80 @@ def generer():
         'alertes':  alertes,
         'formatJeuClassement': format_jeu_classement,
     })
+
+# ══════════════════════════════════════════
+# ROUTES TOURNOIS (SQLite)
+# ══════════════════════════════════════════
+
+@app.route('/tournoi/sauvegarder', methods=['POST'])
+def sauvegarder_tournoi():
+    """Sauvegarde un tournoi complet en base SQLite."""
+    data = request.get_json()
+    nom       = data.get('nom', 'Tournoi sans nom')
+    date_str  = data.get('dateStr', '')
+    nb_paires = data.get('nbPaires', 0)
+    niveau    = data.get('niveau', '')
+    gen_data  = data.get('genData', {})
+    params    = data.get('params', {})
+
+    # On sauvegarde tout le contexte (genData + params de formulaire)
+    payload = json.dumps({
+        'genData': gen_data,
+        'params':  params,
+    }, ensure_ascii=False)
+
+    now = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+    with get_db() as conn:
+        cur = conn.execute(
+            'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
+            (nom, date_str, nb_paires, niveau, payload, now)
+        )
+        conn.commit()
+        tournoi_id = cur.lastrowid
+
+    return jsonify({'ok': True, 'id': tournoi_id, 'message': f'Tournoi #{tournoi_id} sauvegardé'})
+
+
+@app.route('/tournoi/liste', methods=['GET'])
+def liste_tournois():
+    """Retourne la liste de tous les tournois sauvegardés (sans le JSON complet)."""
+    with get_db() as conn:
+        rows = conn.execute(
+            'SELECT id, nom, date_str, nb_paires, niveau, cree_le FROM tournois ORDER BY id DESC'
+        ).fetchall()
+
+    tournois = [dict(r) for r in rows]
+    return jsonify(tournois)
+
+
+@app.route('/tournoi/charger/<int:tid>', methods=['GET'])
+def charger_tournoi(tid):
+    """Retourne un tournoi complet par son ID."""
+    with get_db() as conn:
+        row = conn.execute('SELECT * FROM tournois WHERE id=?', (tid,)).fetchone()
+
+    if not row:
+        return jsonify({'error': 'Tournoi introuvable'}), 404
+
+    t = dict(row)
+    t['data'] = json.loads(t['data_json'])
+    del t['data_json']
+    return jsonify(t)
+
+
+@app.route('/tournoi/supprimer/<int:tid>', methods=['DELETE'])
+def supprimer_tournoi(tid):
+    """Supprime un tournoi de la base."""
+    with get_db() as conn:
+        conn.execute('DELETE FROM tournois WHERE id=?', (tid,))
+        conn.commit()
+    return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════
+# ROUTES SMS / PDF (inchangées)
+# ══════════════════════════════════════════
 
 @app.route('/pdf/tableau', methods=['POST'])
 def pdf_tableau():
@@ -652,22 +692,15 @@ def envoyer_sms():
 
 @app.route('/sms/reponse', methods=['GET', 'POST'])
 def sms_reponse():
-    """Webhook Twilio : redirige les réponses SMS vers le numéro Arena18"""
     from twilio.twiml.messaging_response import MessagingResponse
     from twilio.rest import Client
     import os
-
     expediteur = request.form.get('From', '')
     message    = request.form.get('Body', '')
-    
-    # Numéro de redirection (ton numéro Pierre)
     REDIRECT_TO = '+33685603907'
-    
-    # Identifiants Twilio depuis variables d'environnement ou hardcodés
     account_sid = os.environ.get('TWILIO_SID', '')
     auth_token  = os.environ.get('TWILIO_TOKEN', '')
     from_number = '+33939247914'
-    
     if auth_token:
         try:
             client = Client(account_sid, auth_token)
@@ -675,8 +708,6 @@ def sms_reponse():
             client.messages.create(body=corps, from_=from_number, to=REDIRECT_TO)
         except Exception as e:
             print(f"Erreur redirection SMS: {e}")
-    
-    # Réponse vide à Twilio (pas de réponse auto au joueur)
     resp = MessagingResponse()
     return str(resp)
 
