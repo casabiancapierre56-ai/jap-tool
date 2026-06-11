@@ -508,25 +508,55 @@ def generer():
             else:
                 contrainte_info = ''
 
+            # Liste des paires du tournoi
+            liste_paires_lines = []
+            for idx_p, pp in enumerate(paires):
+                ts_tag = f" ({pp['ts']})" if pp['ts'] else ""
+                liste_paires_lines.append(f"{idx_p+1}. {pp['prenJ1']} {pp['nomJ1']} / {pp['prenJ2']} {pp['nomJ2']}{ts_tag}")
+            liste_paires_str = "\n".join(liste_paires_lines)
+
+            # Format jeu lisible
+            fmt_parts = format_jeu.split(':',1)
+            fmt_display = fmt_parts[1].strip() if len(fmt_parts)>1 else format_jeu
+
+            # Ligne TS / BYE
+            if p['ts']:
+                ts_num = int(p['ts'].replace('TS',''))
+                ts_label = f"Tête de série n°{ts_num}"
+                if is_bye:
+                    ts_label += " — Exempt du 1er tour"
+            else:
+                ts_label = ''
+
+            # Ligne match
+            if is_bye:
+                match_line = f"Entrée en compétition directement en quart de finale."
+            else:
+                match_line = f"Entrée en compétition en {tour}."
+
             msg = (
-                f"ARENA18 – TOURNOI\n\n"
-                f"Bonjour {j['pr']} 👋\n\n"
-                f"🏆 {nom_tournoi}\n"
-                f"📅 {date_str}\n"
-                f"🎾 Format • {format_jeu}\n"
+                f"ARENA18 – TOURNOI\n"
+                f"Votre tournoi commence ici.\n\n"
+                f"Bonjour {j['pr']},\n\n"
+                f"{nom_tournoi} 📅 {date_str}\n"
+                f"Format {fmt_display}\n"
                 f"━━━━━━━━━━━━━━\n"
-                f"👥 Votre paire : {p['nf']}"
-                f"{ts_line}"
-                f"{contrainte_info}\n"
+                f"Votre paire : {p['nf']}\n"
+                + (f"{ts_label}\n" if ts_label else "")
+                + (f"⏳ Disponible à partir de {contraintes[str(p['id'])]}h\n" if str(p['id']) in contraintes else "")
+                + f"━━━━━━━━━━━━━━\n"
+                f"Convocation : {h_conv}h\n"
+                f"Afin d'optimiser le lancement des matchs et le bon déroulement du tournoi, les joueurs sont convoqués 15 minutes avant leur heure d'entrée en piste.\n"
+                f"Un temps d'échauffement de 5 minutes est recommandé avant le début de la rencontre.\n"
+                f"{match_line}\n"
+                f"Match M{num_m} 🕗 Début prévu : {h_m}h 📍 Terrain {piste}"
+                + (f"\n🆚 Adversaires : {adv_str}" if adv_str else "")
+                + f"\n━━━━━━━━━━━━━━\n"
+                f"🎾 Les {len(paires)} paires du tournoi :\n"
+                f"{liste_paires_str}\n"
                 f"━━━━━━━━━━━━━━\n"
-                f"⏰ Convocation : {h_conv}h\n"
-                f"{entree}\n"
-                f"🎾 Match M{num_m}  🕛 Heure : {h_m}h  📍 Terrain {piste}"
-                f"{adv_line}\n"
-                f"━━━━━━━━━━━━━━\n"
-                f"Toute l'équipe ARENA18 vous souhaite un excellent tournoi.\n"
-                f"💚 PLAY HARD. ENJOY MORE.\n"
-                f"ARENA18 PADEL CLUB 🎾"
+                f"Toute l'équipe d'ARENA18 vous souhaite un excellent tournoi.\n"
+                f"ARENA18 PADEL CLUB — PLAY HARD. ENJOY MORE."
             )
 
             tel_raw = j['tel'].replace(' ','').replace('.','').replace('-','')
