@@ -176,7 +176,7 @@ tr:hover td{background:var(--dk3);}
 <body>
 <div class="hdr">
   <div class="badge">JAP Tool v3</div>
-  <h1>Tournoi Padel FFT — Arena18</h1>
+  <h1 id="header-title">Tournoi Padel FFT — Arena18</h1>
   <span id="sb">En attente du CSV FFT</span>
   <button onclick="toggleTheme()" id="theme-btn" style="margin-left:12px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:20px;cursor:pointer;font-family:var(--mo);font-size:11px;font-weight:600;white-space:nowrap;">☀️ Mode clair</button>
 </div>
@@ -573,6 +573,7 @@ async function generer(){
     document.getElementById('b-accueil').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
+    mettreAJourHeaderTitre();
     if(data.alertes?.length) renAlertes(data.alertes);
   } catch(e){ alert('Erreur : '+e.message); }
   finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
@@ -754,8 +755,8 @@ function renMsg(d){
   d.messages.forEach((m,i)=>{
     const tsc=m.ts?(parseInt(m.ts.replace('TS',''))<=2?'a':parseInt(m.ts.replace('TS',''))<=4?'b':'c'):'';
     const telC=m.telClean;
-    const wa=telC?`<a class="bs bw" href="https://wa.me/${telC}?text=${encodeURIComponent(m.msg)}" target="_blank">💬 WhatsApp</a>`:`<span class="bs bd2">Pas de N°</span>`;
-    const smsBtn=telC?`<button id="sms-btn-${i}" class="bs bc" onclick="envoyerSMSUn(${i})" style="background:#1a2a3a;border-color:#1a5080;color:#60b0ff;">📤 SMS</button>`:`<span class="bs bd2">Pas de N°</span>`;
+    const wa=telC?`<a class="bs bw" href="https://wa.me/${telC}?text=${encodeURIComponent(m.msg)}" target="_blank">💬 WhatsApp</a>`:`<button class="bs bc" onclick="editerTel(${i})" style="border-color:var(--am);color:var(--am);">📞 Ajouter N°</button>`;
+    const smsBtn=telC?`<button id="sms-btn-${i}" class="bs bc" onclick="envoyerSMSUn(${i})" style="background:#1a2a3a;border-color:#1a5080;color:#60b0ff;">📤 SMS</button>`:`<span class="bs bd2">—</span>`;
     h+=`<div class="mc"><div class="mh"><div><div class="mn">${m.prenom} ${m.nom.toUpperCase()}${m.ts?' — '+m.ts:''}</div><div class="mp">${m.tel||'N° non renseigné'}</div></div>${m.ts?`<span class="ts ${tsc}">${m.ts}</span>`:''}</div><div class="mb">${m.msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="ma"><button id="copy-btn-${i}" class="bs bc" onclick="copyMsg(${i})">📋 Copier</button>${wa}${smsBtn}</div></div>`;
   });
   h+='</div>';
@@ -1218,8 +1219,12 @@ function appliquerRestauration(){
     document.getElementById('b-ajout').disabled = false;
     document.getElementById('b-accueil').disabled = false;
     document.getElementById('bg').disabled = false;
+    document.getElementById('dz').classList.add('ok');
+    document.getElementById('dz-ok').textContent='✓ Session restaurée — prêt à regénérer';
+    document.getElementById('dz-ok').style.display='block';
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
+    mettreAJourHeaderTitre();
     document.getElementById('restore-banner').remove();
     showToast('✅ Session restaurée !');
   } catch(e) { alert('Erreur restauration : ' + e.message); }
@@ -1297,6 +1302,8 @@ async function sauvegarderEnBase(){
       btn.textContent = '✅ Sauvegardé !';
       btn.style.borderColor = 'var(--gr)';
       btn.style.color = 'var(--gr)';
+      // Rafraîchir la liste si l'onglet Tournois est ouvert
+      if(document.getElementById('ts2').style.display !== 'none') chargerListeTournois();
       setTimeout(()=>{
         btn.textContent = '🗄️ Sauvegarder en base';
         btn.style.borderColor = 'var(--or)';
@@ -1348,6 +1355,7 @@ async function nouveauTournoi(){
   document.getElementById('niveau').value='P250';
   onNiveauChange();
   ['tt','th','tm','tc'].forEach(t=>document.getElementById(t).innerHTML=`<div class="empty"><div class="empty-i">🎾</div>En attente</div>`);
+  document.getElementById('ts2').innerHTML='<div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Aucun tournoi sauvegardé</div>';
   document.getElementById('sb').textContent='En attente du CSV FFT';
   st('tt');
 }
@@ -1443,6 +1451,10 @@ async function chargerTournoi(tid){
       csvText = csv;
     }
     window._tournoiIdEnCours = t.id;
+    document.getElementById('bg').disabled = false;
+    document.getElementById('dz').classList.add('ok');
+    document.getElementById('dz-ok').textContent='✓ Tournoi restauré — prêt à regénérer';
+    document.getElementById('dz-ok').style.display='block';
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
     document.getElementById('b-accueil').disabled = false;
@@ -2035,6 +2047,52 @@ async function dlPdfAccueilImprimer(){
     };
   } catch(e){ alert('Erreur : ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '📋 Feuille accueil caisse'; }
+}
+
+
+// ── Éditer numéro de téléphone manquant ──
+function editerTel(idx){
+  const m = _msgData[idx];
+  if(!m) return;
+  const tel = prompt(`Numéro de téléphone pour ${m.prenom} ${m.nom} :\n(format: 06XXXXXXXX ou +336XXXXXXXX)`, m.tel||'');
+  if(tel === null) return;
+  const telClean = tel.replace(/[\s\.\-]/g,'');
+  let telC = '';
+  if(telClean.startsWith('+33')) telC = telClean.slice(1);
+  else if(telClean.startsWith('0033')) telC = telClean.slice(2);
+  else if(telClean.startsWith('0') && telClean.length===10) telC = '33'+telClean.slice(1);
+  else if(telClean.startsWith('33') && telClean.length===11) telC = telClean;
+  else telC = '33'+telClean;
+
+  // Mettre à jour dans _msgData
+  _msgData[idx].tel = tel;
+  _msgData[idx].telClean = telC;
+  // Mettre à jour aussi dans genData.messages
+  if(genData && genData.messages && genData.messages[idx]){
+    genData.messages[idx].tel = tel;
+    genData.messages[idx].telClean = telC;
+  }
+  // Mettre à jour le joueur dans genData.paires
+  if(genData){
+    genData.paires.forEach(p=>{
+      if(p.prenJ1===m.prenom && p.nomJ1===m.nom) p.telJ1=tel;
+      if(p.prenJ2===m.prenom && p.nomJ2===m.nom) p.telJ2=tel;
+    });
+  }
+  // Rafraîchir l'affichage
+  renMsg(genData);
+  showToast(`✅ Numéro enregistré pour ${m.prenom} ${m.nom}`);
+  sauvegarderSession();
+}
+
+// ── Mettre à jour le titre dans le header ──
+function mettreAJourHeaderTitre(){
+  const el = document.getElementById('header-title');
+  if(!el) return;
+  const nom = document.getElementById('nt').value;
+  const dt  = document.getElementById('dt').value;
+  const dateAff = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+  el.textContent = nom ? (nom + (dateAff ? '  ·  ' + dateAff : '')) : 'Tournoi Padel FFT — Arena18';
 }
 
 </script>
