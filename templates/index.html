@@ -1260,7 +1260,7 @@ function renConvocations(d){
     // Extraire heure convocation et match du message
     const heureMatch = m.msg.match(/Convocation\s*:\s*(\d{2}:\d{2})/);
     const matchNum   = m.msg.match(/Match M(\d+)/);
-    const heureJeu   = m.msg.match(/Heure\s*:\s*(\d{2}:\d{2})/);
+    const heureJeu   = m.msg.match(/Début prévu\s*:\s*(\d{2}:\d{2})/) || m.msg.match(/Heure\s*:\s*(\d{2}:\d{2})/);
     const terrain    = m.msg.match(/Terrain\s*(\d+)/);
     const adv        = m.msg.match(/Adversaires\s*:\s*(.+)/);
     const isBye      = m.msg.includes('Exempt du 1er tour');
