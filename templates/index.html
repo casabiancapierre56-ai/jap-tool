@@ -182,8 +182,9 @@ tr:hover td{background:var(--dk3);}
 </div>
 <div class="wrap">
   <div class="side">
+    <!-- ⚙ TOURNOI -->
     <div class="stl">⚙ Tournoi</div>
-    <div class="fi"><label>Niveau du tournoi</label>
+    <div class="fi"><label>Niveau</label>
       <select id="niveau" onchange="onNiveauChange()">
         <option value="P25">P25</option><option value="P100">P100</option>
         <option value="P250" selected>P250</option><option value="P500">P500</option>
@@ -193,20 +194,21 @@ tr:hover td{background:var(--dk3);}
     </div>
     <div class="fi"><label>Nom</label><input id="nt" value="P250 Double Messieurs Sénior"/></div>
     <div class="fi"><label>Sponsor</label><input id="sp" value="CUPRA LANESTER"/></div>
-    <div class="fi"><label>Date</label><input type="date" id="dt"/></div>
-    <div class="fi"><label>Heure de début</label><input type="time" id="hd" value="09:00"/></div>
-    <div class="fi"><label>Nb de pistes</label><input type="number" id="np" value="2" min="1" max="10"/></div>
     <div class="row2">
-      <div class="fi"><label>Durée match principal (min)</label><input type="number" id="dp" value="45" min="15"/></div>
-      <div class="fi"><label>Durée match classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
+      <div class="fi"><label>Date</label><input type="date" id="dt"/></div>
+      <div class="fi"><label>Début</label><input type="time" id="hd" value="09:00"/></div>
     </div>
-    <div class="fi"><label>Format de jeu — Tableau principal</label>
-      <select id="fg"></select>
+    <div class="row2">
+      <div class="fi"><label>Pistes</label><input type="number" id="np" value="2" min="1" max="10"/></div>
+      <div class="fi"><label>Durée principal (min)</label><input type="number" id="dp" value="45" min="15"/></div>
     </div>
-    <div class="fi"><label>Format de jeu — Matchs de classement</label>
-      <select id="fg-cls"></select>
-    </div>
+    <div class="fi"><label>Durée classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
+    <div class="fi"><label>Format — Tableau principal</label><select id="fg"></select></div>
+    <div class="fi"><label>Format — Classement</label><select id="fg-cls"></select></div>
+
     <div class="div"></div>
+
+    <!-- 📂 CSV -->
     <div class="stl">📂 CSV FFT</div>
     <div class="dz" id="dz">
       <input type="file" accept=".csv,.txt" id="fi-csv" onchange="loadFile(this.files[0])"/>
@@ -215,32 +217,64 @@ tr:hover td{background:var(--dk3);}
       <div class="dz-sub">Export direct depuis le site FFT</div>
       <div class="dz-ok" id="dz-ok"></div>
     </div>
+
     <div class="div"></div>
-    <div class="stl">⏰ Contraintes horaires
+
+    <!-- ⏰ CONTRAINTES -->
+    <div class="stl">⏰ Contraintes
       <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
     </div>
-    <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Si une paire ne peut pas jouer avant une certaine heure</div>
+    <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Paire indisponible avant une certaine heure</div>
     <div id="contraintes-list"></div>
+
     <div class="div"></div>
+
+    <!-- ⚡ ACTIONS PRINCIPALES -->
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
-    <button class="btn btn2" id="b-new" onclick="nouveauTournoi()" style="border-color:#9b59b6;color:#9b59b6;margin-top:5px;">🆕 Nouveau tournoi</button>
-    <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
-    <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
-    <button class="btn btn2" id="b-ajout" onclick="ouvrirAjoutPaire()" disabled style="border-color:var(--gr);color:var(--gr);">➕ Ajouter une paire</button>
-    <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 Exporter CSV</button>
-    <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Sauvegarder en base</button>
-    <div class="tw-box" id="tw-box" style="display:none">
-      <div class="stl">📱 Envoi SMS Twilio</div>
-      <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
-      <div class="fi"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
-      <div class="fi"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx" oninput="saveTwilio()"/></div>
-      <button class="btn btn2" onclick="apercuMessages()" style="border-color:#9b59b6;color:#9b59b6;margin-bottom:4px;">👁 Aperçu des messages</button>
+    <div class="row2" style="margin-top:5px;">
+      <button class="btn btn2" id="b-new" onclick="nouveauTournoi()" style="border-color:#9b59b6;color:#9b59b6;">🆕 Nouveau</button>
+      <button class="btn btn2" id="b-ajout" onclick="ouvrirAjoutPaire()" disabled style="border-color:var(--gr);color:var(--gr);">➕ Paire</button>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- 📄 DOCUMENTS PDF -->
+    <div class="stl">📄 Documents</div>
+    <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
+    <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
+    <button class="btn btn2" id="b-accueil" onclick="ouvrirAccueil()" disabled style="border-color:#3498db;color:#3498db;">📋 Feuille accueil caisse</button>
+
+    <div class="div"></div>
+
+    <!-- 💾 SAUVEGARDES -->
+    <div class="stl">💾 Sauvegardes</div>
+    <div class="row2">
+      <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 CSV</button>
+      <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Base</button>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- 📱 ENVOI SMS / WHATSAPP -->
+    <div class="stl">📱 Convocations</div>
+    <div class="tw-box" id="tw-box" style="display:none;padding:10px;margin-bottom:6px;">
+      <div class="fi" style="margin-bottom:6px;"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
+      <div class="fi" style="margin-bottom:6px;"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
+      <div class="fi" style="margin-bottom:8px;"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx" oninput="saveTwilio()"/></div>
+      <div class="row2" style="margin-bottom:5px;">
+        <button class="btn btn2" onclick="apercuMessages()" style="border-color:#9b59b6;color:#9b59b6;font-size:11px;">👁 Aperçu</button>
+        <button class="btn btn2" onclick="afficherHistoriqueSMS()" style="font-size:11px;">📊 Historique</button>
+      </div>
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
-      <button class="btn2 btn" onclick="afficherHistoriqueSMS()" style="margin-top:5px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);font-size:11px;">📊 Historique envois</button>
     </div>
-    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsApp()" disabled style="border-color:#25D366;color:#25D366;margin-top:5px;">💬 Envoyer tous les WhatsApp</button>
-    <button class="btn btn2" onclick="raz()" style="margin-top:8px;">↺ Réinitialiser</button>
+    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsApp()" disabled style="border-color:#25D366;color:#25D366;">💬 Envoyer tous les WhatsApp</button>
+    <div id="wa-box" style="display:none;margin-top:6px;">
+      <!-- WhatsApp Business API — à venir -->
+    </div>
+
+    <div class="div"></div>
+    <button class="btn btn2" onclick="raz()" style="color:#e74c3c;border-color:#8a2020;">↺ Réinitialiser</button>
   </div>
 
   <div class="main">
@@ -536,6 +570,7 @@ async function generer(){
     document.getElementById('b-db').disabled=false;
     document.getElementById('b-wa').disabled=false;
     document.getElementById('b-ajout').disabled=false;
+    document.getElementById('b-accueil').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
@@ -758,6 +793,7 @@ function raz(){
   document.getElementById('b-db').disabled=true;
   document.getElementById('b-wa').disabled=true;
   document.getElementById('b-ajout').disabled=true;
+  document.getElementById('b-accueil').disabled=true;
   localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
@@ -1180,6 +1216,7 @@ function appliquerRestauration(){
     document.getElementById('b-db').disabled  = false;
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
+    document.getElementById('b-accueil').disabled = false;
     document.getElementById('bg').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
@@ -1295,6 +1332,7 @@ async function nouveauTournoi(){
   document.getElementById('b-db').disabled=true;
   document.getElementById('b-wa').disabled=true;
   document.getElementById('b-ajout').disabled=true;
+  document.getElementById('b-accueil').disabled=true;
   localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
@@ -1407,6 +1445,7 @@ async function chargerTournoi(tid){
     window._tournoiIdEnCours = t.id;
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
+    document.getElementById('b-accueil').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré depuis base · ${t.cree_le}`;
     sauvegarderSession();
@@ -1903,6 +1942,99 @@ function marquerPDFsAJour(){
     const btn = document.getElementById(id);
     if(btn) btn.classList.remove('btn-pdf-stale');
   });
+}
+
+
+async function dlPdfAccueil(){
+  if(!genData) return;
+  const btn = document.getElementById('b-accueil');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ PDF...';
+  try {
+    const dt = document.getElementById('dt').value;
+    const dateStr = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+    const r = await fetch('/pdf/accueil', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages:   genData.messages,
+        nomTournoi: document.getElementById('nt').value,
+        dateStr,
+        nbPistes:   parseInt(document.getElementById('np').value),
+      })
+    });
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||'Erreur '+r.status); }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'accueil_caisse.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e){ alert('Erreur PDF accueil : ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+
+async function ouvrirAccueil(){
+  if(!genData) return;
+  const old = document.getElementById('modal-accueil');
+  if(old) old.remove();
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-bg" id="modal-accueil" style="display:flex">
+    <div class="modal" style="max-width:400px;">
+      <h2>📋 Feuille accueil caisse</h2>
+      <div class="modal-sub">Pour les salariés Arena18 le jour du tournoi</div>
+      <div style="background:var(--dk3);border-radius:8px;padding:12px;margin-bottom:14px;font-family:var(--mo);font-size:11px;line-height:1.8;">
+        ✅ Nom / Prénom de chaque joueur<br>
+        ✅ Heure de convocation<br>
+        ✅ Numéro de match et terrain<br>
+        ✅ Adversaire<br>
+        ✅ Case à cocher PAYÉ par joueur<br>
+        ✅ Triée par heure de convocation
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="document.getElementById('modal-accueil').remove()">Annuler</button>
+        <button class="modal-btn primary" onclick="document.getElementById('modal-accueil').remove();dlPdfAccueilImprimer()">🖨 Imprimer</button>
+        <button class="modal-btn secondary" onclick="document.getElementById('modal-accueil').remove();dlPdfAccueil()">💾 Télécharger</button>
+      </div>
+    </div></div>`);
+}
+
+async function dlPdfAccueilImprimer(){
+  if(!genData) return;
+  const btn = document.getElementById('b-accueil');
+  btn.disabled = true; btn.textContent = '⏳...';
+  try {
+    const dt = document.getElementById('dt').value;
+    const dateStr = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+    const r = await fetch('/pdf/accueil', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages: genData.messages,
+        nomTournoi: document.getElementById('nt').value,
+        dateStr,
+        nbPistes: parseInt(document.getElementById('np').value),
+      })
+    });
+    if(!r.ok) throw new Error('Erreur PDF');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    // Ouvrir dans un iframe caché et imprimer
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow.print();
+        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
+      }, 500);
+    };
+  } catch(e){ alert('Erreur : ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '📋 Feuille accueil caisse'; }
 }
 
 </script>
