@@ -458,7 +458,7 @@ async function generer(){
     if(data.error){alert(data.error);return;}
     genData=data;
     sauvegarderSession();
-    renTab(data); renH(data); renMsg(data);
+    renTab(data); renH(data); renMsg(data); renConvocations(data);
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
     document.getElementById('b-csv').disabled=false;
@@ -1162,8 +1162,9 @@ function renConvocations(d){
   if(!d||!d.paires) return;
 
   // Construire la map paire → infos convocation depuis les messages
+  const messages = d.messages || _msgData || [];
   const convMap = {};
-  d.messages.forEach(m => {
+  messages.forEach(m => {
     // Extraire heure convocation et match du message
     const heureMatch = m.msg.match(/Convocation\s*:\s*(\d{2}:\d{2})/);
     const matchNum   = m.msg.match(/Match M(\d+)/);
