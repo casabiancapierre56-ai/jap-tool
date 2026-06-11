@@ -14,7 +14,7 @@ from reportlab.lib import colors
 app = Flask(__name__)
 
 # ── SQLite ───────────────────────────────
-DB_PATH = os.path.join(os.path.dirname(__file__), 'tournois.db')
+DB_PATH = os.environ.get('TOURNOIS_DB', os.path.join(os.path.dirname(__file__), 'tournois.db'))
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -633,6 +633,76 @@ def supprimer_tournoi(tid):
 # ══════════════════════════════════════════
 # ROUTES SMS / PDF (inchangées)
 # ══════════════════════════════════════════
+
+
+@app.route('/tournoi/modifier', methods=['POST'])
+def modifier_tournoi():
+    """Modifie un tournoi en minimisant les changements."""
+    data = request.get_json()
+    paires_actuelles = data['paires']
+    action           = data['action']  # 'ajout' ou 'forfait'
+    nouvelle_paire   = data.get('nouvellePaire')
+    forfait_id       = data.get('forfaitId')
+
+    # Snapshot avant
+    avant = {}
+    for p in paires_actuelles:
+        avant[p['nf']] = {'ts': p.get('ts'), 'poids': p['poids'], 'nf': p['nf'], 'id': p['id']}
+
+    nouvelles_paires = [p.copy() for p in paires_actuelles]
+
+    if action == 'ajout' and nouvelle_paire:
+        nv = nouvelle_paire
+        nv['nc'] = nv['nomJ1'].upper() + ' / ' + nv['nomJ2'].upper()
+        nv['nf'] = nv['prenJ1'] + ' ' + nv['nomJ1'] + ' / ' + nv['prenJ2'] + ' ' + nv['nomJ2']
+        nouvelles_paires.append(nv)
+
+    elif action == 'forfait' and forfait_id is not None:
+        nouvelles_paires = [p for p in nouvelles_paires if p['id'] != forfait_id]
+        remplacante = data.get('remplacante')
+        if remplacante:
+            remplacante['nc'] = remplacante['nomJ1'].upper() + ' / ' + remplacante['nomJ2'].upper()
+            remplacante['nf'] = remplacante['prenJ1'] + ' ' + remplacante['nomJ1'] + ' / ' + remplacante['prenJ2'] + ' ' + remplacante['nomJ2']
+            nouvelles_paires.append(remplacante)
+
+    # Retrier par poids
+    nouvelles_paires.sort(key=lambda p: p['poids'])
+
+    # Recalculer IDs et TS
+    for i, p in enumerate(nouvelles_paires):
+        p['id']  = i + 1
+        p['ts']  = 'TS' + str(i+1) if i < 8 else None
+        p['nc']  = p['nomJ1'].upper() + ' / ' + p['nomJ2'].upper()
+        p['nf']  = p['prenJ1'] + ' ' + p['nomJ1'] + ' / ' + p['prenJ2'] + ' ' + p['nomJ2']
+
+    # Detecter paires impactees
+    paires_impactees = []
+    for p in nouvelles_paires:
+        ancien = avant.get(p['nf'])
+        if ancien is None:
+            paires_impactees.append({'paire': p, 'raison': 'nouvelle', 'ancien_ts': None, 'nouveau_ts': p['ts']})
+        elif ancien['ts'] != p['ts']:
+            paires_impactees.append({'paire': p, 'raison': 'changement_ts', 'ancien_ts': ancien['ts'], 'nouveau_ts': p['ts']})
+
+    if action == 'forfait' and forfait_id is not None:
+        paire_sortie = next((p for p in paires_actuelles if p['id'] == forfait_id), None)
+        if paire_sortie:
+            paires_impactees.append({'paire': paire_sortie, 'raison': 'forfait', 'ancien_ts': paire_sortie.get('ts'), 'nouveau_ts': None})
+
+    # CSV synthetique pour regeneration
+    csv_lines = ['Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids']
+    for i, p in enumerate(nouvelles_paires):
+        tel1 = p.get('telJ1','').strip()
+        tel2 = p.get('telJ2','').strip()
+        csv_lines.append(f";P{i+1};;{p['nomJ1']};{p['prenJ1']};;{p.get('licJ1','')};;;;{tel1};{p['nomJ2']};{p['prenJ2']};;{p.get('licJ2','')};;;;{tel2};{p['poids']}")
+
+    return jsonify({
+        'ok': True,
+        'nouvellesPaires': nouvelles_paires,
+        'pairesImpactees': paires_impactees,
+        'csvSynthetique':  '\n'.join(csv_lines),
+        'nbImpactees':     len(paires_impactees),
+    })
 
 @app.route('/pdf/tableau', methods=['POST'])
 def pdf_tableau():
