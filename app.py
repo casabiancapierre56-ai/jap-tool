@@ -616,7 +616,7 @@ def sauvegarder_tournoi():
 
     with get_db() as conn:
         if tournoi_id:
-            # Mise à jour tournoi existant
+            # Mise à jour tournoi existant par ID
             conn.execute(
                 'UPDATE tournois SET nom=?, date_str=?, nb_paires=?, niveau=?, data_json=?, cree_le=? WHERE id=?',
                 (nom, date_str, nb_paires, niveau, payload, now, tournoi_id)
@@ -624,14 +624,29 @@ def sauvegarder_tournoi():
             conn.commit()
             msg = f'Tournoi #{tournoi_id} mis à jour'
         else:
-            # Nouveau tournoi
-            cur = conn.execute(
-                'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
-                (nom, date_str, nb_paires, niveau, payload, now)
-            )
-            conn.commit()
-            tournoi_id = cur.lastrowid
-            msg = f'Tournoi #{tournoi_id} sauvegardé'
+            # Vérifier doublon par nom + date
+            existing = conn.execute(
+                'SELECT id FROM tournois WHERE nom=? AND date_str=? ORDER BY id DESC LIMIT 1',
+                (nom, date_str)
+            ).fetchone()
+            if existing:
+                # Mettre à jour le tournoi existant
+                tournoi_id = existing['id']
+                conn.execute(
+                    'UPDATE tournois SET nb_paires=?, niveau=?, data_json=?, cree_le=? WHERE id=?',
+                    (nb_paires, niveau, payload, now, tournoi_id)
+                )
+                conn.commit()
+                msg = f'Tournoi #{tournoi_id} mis à jour (même nom/date)'
+            else:
+                # Nouveau tournoi
+                cur = conn.execute(
+                    'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
+                    (nom, date_str, nb_paires, niveau, payload, now)
+                )
+                conn.commit()
+                tournoi_id = cur.lastrowid
+                msg = f'Tournoi #{tournoi_id} sauvegardé'
 
     return jsonify({'ok': True, 'id': tournoi_id, 'message': msg})
 
