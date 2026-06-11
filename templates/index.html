@@ -943,66 +943,120 @@ function calcPoidsForfait(){
 function closeModal(id){document.getElementById(id).style.display='none';}
 
 const FORMATS_NIVEAUX={
+  // P25 & P100 : Tableau = C1/C2/D1/D2/E/F (E ou F conseillé) — Classement = idem
   P25:{principal:[
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points ✓ Conseillé'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓ Conseillé'},
     {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
-    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3'},
-    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'}
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'}
   ],classement:[
-    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓'},
-    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'}
-  ],note:'P25 — Formats E ou F conseillés'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points ✓ Conseillé'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓ Conseillé'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'}
+  ],note:'P25 — Formats C1/C2/D1/D2/E/F autorisés. E ou F conseillés.'},
   P100:{principal:[
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points ✓ Conseillé'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓ Conseillé'},
     {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
-    {val:'F : 1 set 4 jeux, NO-AD',label:'F — 1 set 4 jeux · NO-AD'},
-    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'}
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'}
   ],classement:[
-    {val:'F : 1 set 4 jeux, NO-AD',label:'F — 1 set 4 jeux · NO-AD ✓'},
-    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'},
-    {val:'D2 : 1 set 9 jeux, NO-AD',label:'D2 — 1 set 9 jeux · NO-AD'}
-  ],note:'P100 — Formats E ou F conseillés'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points ✓ Conseillé'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓ Conseillé'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'}
+  ],note:'P100 — Formats C1/C2/D1/D2/E/F autorisés. E ou F conseillés.'},
+  // P250 à P2000 : Tout sauf E et F pour le tableau
   P250:{principal:[
     {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8 ✓'},
-    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
     {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
-    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'}
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
+    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage'}
   ],classement:[
     {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD · Jeu décisif à 3/3 ✓'},
-    {val:'D2 : 1 set 9 jeux, NO-AD',label:'D2 — 1 set 9 jeux · NO-AD'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'},
     {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
-    {val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 — 2 sets 6 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
     {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'}
-  ],note:'P250 — Formats A2/B2/C2/D2 uniquement (pas E ni F pour le tableau)'},
+  ],note:'P250 — Tableau : tout sauf E/F. Classement : tous formats autorisés.'},
   P500:{principal:[
     {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif ✓'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage'},
     {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
     {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage'},
-    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'}
-  ],classement:[
-    {val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 — 2 sets 6 jeux · NO-AD'},
     {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
-    {val:'D2 : 1 set 9 jeux, NO-AD',label:'D2 — 1 set 9 jeux · NO-AD'}
-  ],note:'P500 — Finale obligatoire en A1/A2/B1/B2.'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'}
+  ],classement:[
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD ✓'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
+    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage'}
+  ],note:'P500 — Tableau : tout sauf E/F. Finale : obligatoirement A1/A2/B1/B2.'},
   P1000:{principal:[
-    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD (obligatoire ≥1/8) ✓'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD ✓'},
     {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage'},
-    {val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 — 2 sets 6 jeux · NO-AD (qualifs)'}
-  ],classement:[
-    {val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 — 2 sets 6 jeux · NO-AD'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage'},
     {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
-    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'}
-  ],note:'P1000 — A1/A2 obligatoire ≥1/8.'},
+    {val:'C1 : 2 sets 4 jeux, avec avantage',label:'C1 — 2 sets 4 jeux · Avec avantage'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD · Jeu décisif à 8/8'},
+    {val:'D1 : 1 set 9 jeux, avec avantage',label:'D1 — 1 set 9 jeux · Avec avantage'}
+  ],classement:[
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD ✓'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
+    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage'}
+  ],note:'P1000 — Tableau : tout sauf E/F. Finale : obligatoirement A1/A2/B1/B2.'},
   P1500:{principal:[
-    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage (obligatoire ≥1/8) ✓'},
+    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage ✓'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD'}
+  ],classement:[
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD ✓'},
+    {val:'F : 1 set 4 jeux, NO-AD, jeu decisif a 3/3',label:'F — 1 set 4 jeux · NO-AD'},
+    {val:'E : Super jeu decisif 10 points',label:'E — Super jeu décisif 10 points'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD'},
     {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'}
-  ],classement:[
-    {val:'B2 : 2 sets 6 jeux, NO-AD',label:'B2 — 2 sets 6 jeux · NO-AD'},
-    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'}
-  ],note:'P1500 — A1 obligatoire ≥1/8.'},
+  ],note:'P1500 — Tableau : tout sauf E/F. Finale : A1/A2/B1/B2 obligatoire.'},
   P2000:{principal:[
-    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage (obligatoire) ✓'}
+    {val:'A1 : 3 sets 6 jeux, avec avantage',label:'A1 — 3 sets 6 jeux · Avec avantage ✓ Obligatoire'},
+    {val:'A2 : 3 sets 6 jeux, NO-AD',label:'A2 — 3 sets 6 jeux · NO-AD'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage'}
   ],classement:[
-    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage (obligatoire) ✓'}
-  ],note:'P2000 — A1 tableau, B1 classement.'},
+    {val:'B1 : 2 sets 6 jeux, avec avantage',label:'B1 — 2 sets 6 jeux · Avec avantage ✓ Obligatoire'},
+    {val:'B2 : 2 sets 6 jeux, NO-AD, super jeu decisif 10 pts',label:'B2 — 2 sets 6 jeux · NO-AD · Super jeu décisif'},
+    {val:'C2 : 2 sets 4 jeux, NO-AD',label:'C2 — 2 sets 4 jeux · NO-AD'},
+    {val:'D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8',label:'D2 — 1 set 9 jeux · NO-AD'}
+  ],note:'P2000 — Tableau : A1 obligatoire. Classement : B1 obligatoire.'},
 };
 
 function onNiveauChange(){
