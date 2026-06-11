@@ -229,8 +229,10 @@ tr:hover td{background:var(--dk3);}
       <div class="fi"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
       <div class="fi"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
       <div class="fi"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx" oninput="saveTwilio()"/></div>
+      <button class="btn btn2" onclick="apercuMessages()" style="border-color:#9b59b6;color:#9b59b6;margin-bottom:4px;">👁 Aperçu des messages</button>
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
+      <button class="btn2 btn" onclick="afficherHistoriqueSMS()" style="margin-top:5px;background:var(--dk3);border:1px solid var(--bd);color:var(--tx2);font-size:11px;">📊 Historique envois</button>
     </div>
     <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsApp()" disabled style="border-color:#25D366;color:#25D366;margin-top:5px;">💬 Envoyer tous les WhatsApp</button>
     <button class="btn btn2" onclick="raz()" style="margin-top:8px;">↺ Réinitialiser</button>
@@ -583,6 +585,7 @@ async function envoyerSMS(){
     if(data.error){el.innerHTML=`<span style="color:var(--am)">❌ ${data.error}</span>`;return;}
     el.innerHTML=`<span style="color:var(--gr)">✅ ${data.sent}/${data.total} SMS envoyés</span><br>`
       +data.results.map(r=>`<span style="color:${r.status==='sent'?'var(--gr)':r.status==='skipped'?'var(--am)':'var(--or)'}">${r.status==='sent'?'✓':'✗'} ${r.tel}</span>`).join('<br>');
+    enregistrerHistoriqueSMS(data.results, document.getElementById('nt').value);
   } catch(e){ alert('Erreur SMS : '+e.message); }
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
 }
@@ -737,6 +740,7 @@ function sauvegarderCSV(){
 }
 
 function raz(){
+  if(!confirm('⚠️ Réinitialiser le tournoi ?\n\nToutes les données non sauvegardées en base seront perdues.\nLe tournoi en base reste accessible dans l\'onglet 📂 Tournois.\n\nConfirmer ?')) return;
   csvText=''; genData=null; pairesLoaded=[];
   document.getElementById('dz-ok').style.display='none';
   document.getElementById('dz').classList.remove('ok');
@@ -1104,6 +1108,7 @@ function sauvegarderSession(){
   try {
     const session = {
       genData,
+      csvSynthetique: csvText,
       params: {
         nomTournoi: document.getElementById('nt').value,
         sponsor: document.getElementById('sp').value,
@@ -1128,7 +1133,9 @@ function restaurerSession(){
     if(!raw) return;
     const session = JSON.parse(raw);
     if(!session.genData) return;
-    const banner = document.createElement('div');
+    // Ne pas afficher si un tournoi est déjà en cours
+  if(genData) return;
+  const banner = document.createElement('div');
     banner.id = 'restore-banner';
     banner.style = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--dk2);border:1px solid var(--or);color:var(--tx);padding:14px 20px;border-radius:10px;font-family:var(--mo);font-size:12px;z-index:3000;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.5);';
     banner.innerHTML = `
@@ -1156,6 +1163,7 @@ function appliquerRestauration(){
     document.getElementById('niveau').value = p.niveau || 'P250';
     onNiveauChange();
     genData = session.genData;
+    if(session.csvSynthetique) csvText = session.csvSynthetique;
     renTab(genData); renH(genData); renMsg(genData); renConvocations(genData);
     if(genData.alertes) renAlertes(genData.alertes);
     document.getElementById('b-tab').disabled = false;
@@ -1164,6 +1172,7 @@ function appliquerRestauration(){
     document.getElementById('b-db').disabled  = false;
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
+    document.getElementById('bg').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
     document.getElementById('restore-banner').remove();
@@ -1282,8 +1291,16 @@ async function nouveauTournoi(){
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
   document.getElementById('contraintes-list').innerHTML='';
-  // Remettre la date à aujourd'hui
+  // Remettre les paramètres à zéro
   document.getElementById('dt').value=new Date().toISOString().split('T')[0];
+  document.getElementById('nt').value='';
+  document.getElementById('sp').value='CUPRA LANESTER';
+  document.getElementById('hd').value='09:00';
+  document.getElementById('np').value='2';
+  document.getElementById('dp').value='45';
+  document.getElementById('dc').value='45';
+  document.getElementById('niveau').value='P250';
+  onNiveauChange();
   ['tt','th','tm','tc'].forEach(t=>document.getElementById(t).innerHTML=`<div class="empty"><div class="empty-i">🎾</div>En attente</div>`);
   document.getElementById('sb').textContent='En attente du CSV FFT';
   st('tt');
@@ -1299,9 +1316,15 @@ async function chargerListeTournois(){
       el.innerHTML = '<div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Aucun tournoi sauvegardé<br><span style="font-size:10px;opacity:.7;">Génère un tableau puis clique sur<br>🗄️ Sauvegarder en base</span></div>';
       return;
     }
-    let h = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    let h = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div class="stl" style="margin:0;">🗄️ ${tournois.length} tournoi${tournois.length>1?'s':''} sauvegardé${tournois.length>1?'s':''}</div>
-    </div>`;
+    </div>
+    <div style="margin-bottom:12px;">
+      <input id="search-tournois" type="text" placeholder="🔍 Rechercher..." 
+        oninput="filtrerTournois(this.value)"
+        style="width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:8px 12px;border-radius:8px;font-family:var(--mo);font-size:12px;outline:none;">
+    </div>
+    <div id="liste-tournois-cards">`;
     tournois.forEach(t => {
       const dateAff = t.date_str ? ` · ${t.date_str}` : '';
       const niveauBadge = t.niveau ? `<span class="t-niveau">${t.niveau}</span>` : '';
@@ -1317,7 +1340,10 @@ async function chargerListeTournois(){
         </div>
       </div>`;
     });
-    el.innerHTML = h;
+    h += '</div>'; // fermer liste-tournois-cards
+  el.innerHTML = h;
+  // Stocker les tournois pour la recherche
+  window._tournoisList = tournois;
   } catch(e) {
     el.innerHTML = `<div class="t-empty" style="color:#e74c3c;">❌ Erreur : ${e.message}</div>`;
   }
@@ -1362,6 +1388,14 @@ async function chargerTournoi(tid){
     document.getElementById('b-fdr').disabled = false;
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
+    // Reconstruire CSV synthétique depuis les paires sauvegardées
+    if(session.genData && session.genData.paires){
+      let csv='Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids\n';
+      session.genData.paires.forEach((p,i)=>{
+        csv+=`;P${i+1};;${p.nomJ1};${p.prenJ1};;${p.licJ1||''};;;;${p.telJ1||''};${p.nomJ2};${p.prenJ2};;${p.licJ2||''};;;;${p.telJ2||''};${p.poids}\n`;
+      });
+      csvText = csv;
+    }
     window._tournoiIdEnCours = t.id;
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
@@ -1713,6 +1747,118 @@ async function renvoyerTousImpactes(){
     body:JSON.stringify({messages:msgs,twilioSid:sid,twilioToken:tok,twilioFrom:num})});
   const data=await r.json();
   showToast(data.sent>0?'✅ '+data.sent+' SMS envoyés aux paires impactées':'❌ Erreur envoi');
+}
+
+
+// ══════════════════════════════════════
+// APERÇU MESSAGES + HISTORIQUE SMS
+// ══════════════════════════════════════
+
+function apercuMessages(){
+  if(!_msgData||!_msgData.length){alert('Génère le tableau d\'abord !');return;}
+  const old = document.getElementById('modal-apercu');
+  if(old) old.remove();
+
+  // Grouper par paire (2 joueurs par paire)
+  const paires = {};
+  _msgData.forEach(m=>{
+    if(!paires[m.paire]) paires[m.paire] = m;
+  });
+  const list = Object.values(paires);
+
+  let h = `<div class="modal-bg" id="modal-apercu" style="display:flex">
+  <div class="modal" style="max-width:700px;">
+    <h2>👁 Aperçu des messages (${list.length} paires)</h2>
+    <div class="modal-sub">Vérifiez les messages avant envoi — ${_msgData.length} SMS au total</div>
+    <div style="max-height:60vh;overflow-y:auto;">`;
+
+  list.forEach((m,i)=>{
+    const tsc = m.ts?(parseInt(m.ts.replace('TS',''))<=2?'a':parseInt(m.ts.replace('TS',''))<=4?'b':'c'):'';
+    h += `<div style="background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        ${m.ts?`<span class="ts ${tsc}">${m.ts}</span>`:''}
+        <strong style="font-size:12px;">${m.paire}</strong>
+        <span style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-left:auto;">${m.tel||'N° manquant'}</span>
+      </div>
+      <div style="font-size:10px;font-family:var(--mo);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;background:var(--dk2);padding:8px;border-radius:6px;border-left:2px solid var(--gr);">${m.msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    </div>`;
+  });
+
+  h += `</div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="document.getElementById('modal-apercu').remove()">Fermer</button>
+      <button class="modal-btn primary" onclick="document.getElementById('modal-apercu').remove();envoyerSMS()">📤 Envoyer tous les SMS</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', h);
+}
+
+// ── Historique SMS ──
+function enregistrerHistoriqueSMS(results, nomTournoi){
+  try {
+    const hist = JSON.parse(localStorage.getItem('jap_sms_history')||'[]');
+    const entry = {
+      date: new Date().toLocaleString('fr-FR'),
+      tournoi: nomTournoi,
+      sent: results.filter(r=>r.status==='sent').length,
+      total: results.length,
+      details: results,
+    };
+    hist.unshift(entry);
+    // Garder max 50 entrées
+    localStorage.setItem('jap_sms_history', JSON.stringify(hist.slice(0,50)));
+  } catch(e){ console.error('Erreur historique SMS:', e); }
+}
+
+function afficherHistoriqueSMS(){
+  const hist = JSON.parse(localStorage.getItem('jap_sms_history')||'[]');
+  if(!hist.length){ showToast('Aucun historique SMS'); return; }
+
+  const old = document.getElementById('modal-historique');
+  if(old) old.remove();
+
+  let h = `<div class="modal-bg" id="modal-historique" style="display:flex">
+  <div class="modal" style="max-width:600px;">
+    <h2>📊 Historique des envois SMS</h2>
+    <div class="modal-sub">${hist.length} envoi(s) enregistré(s)</div>
+    <div style="max-height:65vh;overflow-y:auto;">`;
+
+  hist.forEach((e,i)=>{
+    const tauxOk = Math.round(e.sent/e.total*100);
+    h += `<div style="background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <strong style="font-size:12px;">${e.tournoi}</strong>
+        <span style="font-size:10px;color:var(--tx2);font-family:var(--mo);">${e.date}</span>
+      </div>
+      <div style="font-size:11px;font-family:var(--mo);">
+        <span style="color:${tauxOk===100?'var(--gr)':'var(--am)'};">✅ ${e.sent}/${e.total} SMS envoyés (${tauxOk}%)</span>
+      </div>
+      ${e.details.filter(r=>r.status!=='sent').length?`<div style="font-size:10px;color:#e74c3c;margin-top:4px;">${e.details.filter(r=>r.status!=='sent').map(r=>`❌ ${r.tel}`).join(' · ')}</div>`:''}
+    </div>`;
+  });
+
+  h += `</div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="document.getElementById('modal-historique').remove()">Fermer</button>
+      <button class="modal-btn secondary" onclick="localStorage.removeItem('jap_sms_history');document.getElementById('modal-historique').remove();showToast('Historique effacé');" style="background:#2a0a0a;border-color:#8a2020;color:#ff8080;">🗑 Effacer l\'historique</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', h);
+}
+
+
+function filtrerTournois(query){
+  if(!window._tournoisList) return;
+  const q = query.toLowerCase().trim();
+  const container = document.getElementById('liste-tournois-cards');
+  if(!container) return;
+  const cards = container.querySelectorAll('.t-card');
+  cards.forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = !q || text.includes(q) ? '' : 'none';
+  });
 }
 
 </script>
