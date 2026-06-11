@@ -585,7 +585,7 @@ async function envoyerSMS(){
     if(data.error){el.innerHTML=`<span style="color:var(--am)">❌ ${data.error}</span>`;return;}
     el.innerHTML=`<span style="color:var(--gr)">✅ ${data.sent}/${data.total} SMS envoyés</span><br>`
       +data.results.map(r=>`<span style="color:${r.status==='sent'?'var(--gr)':r.status==='skipped'?'var(--am)':'var(--or)'}">${r.status==='sent'?'✓':'✗'} ${r.tel}</span>`).join('<br>');
-    enregistrerHistoriqueSMS(data.results, document.getElementById('nt').value);
+    await enregistrerHistoriqueSMS(data.results, document.getElementById('nt').value);
   } catch(e){ alert('Erreur SMS : '+e.message); }
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
 }
@@ -1795,57 +1795,76 @@ function apercuMessages(){
 }
 
 // ── Historique SMS ──
-function enregistrerHistoriqueSMS(results, nomTournoi){
+async function enregistrerHistoriqueSMS(results, nomTournoi){
   try {
-    const hist = JSON.parse(localStorage.getItem('jap_sms_history')||'[]');
-    const entry = {
-      date: new Date().toLocaleString('fr-FR'),
-      tournoi: nomTournoi,
-      sent: results.filter(r=>r.status==='sent').length,
-      total: results.length,
-      details: results,
-    };
-    hist.unshift(entry);
-    // Garder max 50 entrées
-    localStorage.setItem('jap_sms_history', JSON.stringify(hist.slice(0,50)));
+    await fetch('/sms/historique/sauvegarder', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tournoiNom: nomTournoi,
+        tournoiId:  window._tournoiIdEnCours || null,
+        nbEnvoyes:  results.filter(r=>r.status==='sent').length,
+        nbTotal:    results.length,
+        details:    results,
+      })
+    });
   } catch(e){ console.error('Erreur historique SMS:', e); }
 }
 
-function afficherHistoriqueSMS(){
-  const hist = JSON.parse(localStorage.getItem('jap_sms_history')||'[]');
-  if(!hist.length){ showToast('Aucun historique SMS'); return; }
-
+async function afficherHistoriqueSMS(){
   const old = document.getElementById('modal-historique');
   if(old) old.remove();
 
-  let h = `<div class="modal-bg" id="modal-historique" style="display:flex">
-  <div class="modal" style="max-width:600px;">
-    <h2>📊 Historique des envois SMS</h2>
-    <div class="modal-sub">${hist.length} envoi(s) enregistré(s)</div>
-    <div style="max-height:65vh;overflow-y:auto;">`;
-
-  hist.forEach((e,i)=>{
-    const tauxOk = Math.round(e.sent/e.total*100);
-    h += `<div style="background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <strong style="font-size:12px;">${e.tournoi}</strong>
-        <span style="font-size:10px;color:var(--tx2);font-family:var(--mo);">${e.date}</span>
+  // Afficher modal avec loading
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-bg" id="modal-historique" style="display:flex">
+    <div class="modal" style="max-width:600px;">
+      <h2>📊 Historique des envois SMS</h2>
+      <div id="hist-content" style="max-height:65vh;overflow-y:auto;">
+        <div class="t-empty">⏳ Chargement...</div>
       </div>
-      <div style="font-size:11px;font-family:var(--mo);">
-        <span style="color:${tauxOk===100?'var(--gr)':'var(--am)'};">✅ ${e.sent}/${e.total} SMS envoyés (${tauxOk}%)</span>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="document.getElementById('modal-historique').remove()">Fermer</button>
       </div>
-      ${e.details.filter(r=>r.status!=='sent').length?`<div style="font-size:10px;color:#e74c3c;margin-top:4px;">${e.details.filter(r=>r.status!=='sent').map(r=>`❌ ${r.tel}`).join(' · ')}</div>`:''}
-    </div>`;
-  });
+    </div></div>`);
 
-  h += `</div>
-    <div class="modal-actions">
-      <button class="modal-btn cancel" onclick="document.getElementById('modal-historique').remove()">Fermer</button>
-      <button class="modal-btn secondary" onclick="localStorage.removeItem('jap_sms_history');document.getElementById('modal-historique').remove();showToast('Historique effacé');" style="background:#2a0a0a;border-color:#8a2020;color:#ff8080;">🗑 Effacer l\'historique</button>
-    </div>
-  </div></div>`;
+  try {
+    const r = await fetch('/sms/historique/liste');
+    const hist = await r.json();
+    const el = document.getElementById('hist-content');
 
-  document.body.insertAdjacentHTML('beforeend', h);
+    if(!hist.length){
+      el.innerHTML = '<div class="t-empty">Aucun envoi SMS enregistré</div>';
+      return;
+    }
+
+    let h = '';
+    hist.forEach(e => {
+      const tauxOk = e.nb_total > 0 ? Math.round(e.nb_envoyes/e.nb_total*100) : 0;
+      h += `<div style="background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <strong style="font-size:12px;">${e.tournoi_nom}</strong>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span style="font-size:10px;color:var(--tx2);font-family:var(--mo);">${e.date_envoi}</span>
+            <button onclick="supprimerHistSMS(${e.id},this)" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:12px;padding:0 2px;">🗑</button>
+          </div>
+        </div>
+        <div style="font-size:11px;font-family:var(--mo);">
+          <span style="color:${tauxOk===100?'var(--gr)':'var(--am)'};">✅ ${e.nb_envoyes}/${e.nb_total} SMS envoyés (${tauxOk}%)</span>
+        </div>
+      </div>`;
+    });
+    el.innerHTML = h;
+  } catch(ex) {
+    document.getElementById('hist-content').innerHTML = `<div class="t-empty" style="color:#e74c3c;">❌ Erreur : ${ex.message}</div>`;
+  }
+}
+
+async function supprimerHistSMS(id, btn){
+  if(!confirm('Supprimer cet envoi de l\'historique ?')) return;
+  await fetch(`/sms/historique/supprimer/${id}`, {method:'DELETE'});
+  btn.closest('div[style]').remove();
+  showToast('🗑 Entrée supprimée');
 }
 
 
