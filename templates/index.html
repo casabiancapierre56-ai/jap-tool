@@ -886,9 +886,13 @@ async function appliquerForfait(mode){
       });
       const result = await r.json();
       if(!result.ok) throw new Error(result.error||'Erreur');
-      afficherPairesImpactees(result.pairesImpactees);
+      window._pendingImpactees = result.pairesImpactees;
       csvText = result.csvSynthetique;
       await generer();
+      if(window._pendingImpactees) {
+        afficherPairesImpactees(window._pendingImpactees);
+        window._pendingImpactees = null;
+      }
       showToast('✅ Forfait appliqué — ' + result.nbImpactees + ' paire(s) impactée(s)');
     } catch(e){ alert('Erreur : '+e.message); }
     return;
@@ -1423,13 +1427,18 @@ async function appliquerModifMinimale(action, nouvellePaire, forfaitId){
     const result = await r.json();
     if(!result.ok) throw new Error(result.error||'Erreur');
 
-    // Afficher le panneau des paires impactées
-    afficherPairesImpactees(result.pairesImpactees);
+    // Stocker les impactées — afficher APRÈS generer() pour ne pas être écrasé
+    window._pendingImpactees = result.pairesImpactees;
 
     // Régénérer le tableau complet avec les nouvelles paires
     csvText = result.csvSynthetique;
     await generer();
 
+    // Afficher maintenant (renTab a déjà tourné)
+    if(window._pendingImpactees) {
+      afficherPairesImpactees(window._pendingImpactees);
+      window._pendingImpactees = null;
+    }
     showToast(`✅ ${result.nbImpactees} paire(s) impactée(s)`);
   } catch(e) {
     alert('Erreur : ' + e.message);
