@@ -1069,6 +1069,12 @@ function onNiveauChange(){
   if(nt.value.startsWith('P')) nt.value=niveau+' Double Messieurs Senior';
   document.getElementById('fg').innerHTML=fmts.principal.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
   document.getElementById('fg-cls').innerHTML=fmts.classement.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
+  // Sélectionner D2 par défaut si disponible
+  const d2val='D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8';
+  const fgSel=document.getElementById('fg');
+  const fgClsSel=document.getElementById('fg-cls');
+  for(let o of fgSel.options){ if(o.value===d2val){fgSel.value=d2val;break;} }
+  for(let o of fgClsSel.options){ if(o.value===d2val){fgClsSel.value=d2val;break;} }
   if(fmts.note){
     let noteEl=document.getElementById('niveau-note');
     if(!noteEl){noteEl=document.createElement('div');noteEl.id='niveau-note';noteEl.style='font-size:10px;color:var(--am);font-family:var(--mo);margin-top:4px;padding:6px 10px;background:var(--dk3);border-radius:6px;border-left:3px solid var(--am);';document.getElementById('niveau').parentElement.appendChild(noteEl);}
