@@ -796,6 +796,7 @@ function appliquerModif(mode){
   };
   closeModal('modal-edit');
   if(mode==='recalcul'){
+    // Recalcul complet — pas de modification minimale car c'est un changement de poids
     regenererAvecPaires(genData.paires);
   } else {
     mettreAJourRefs(editPaireId, genData.paires[idx]);
@@ -835,7 +836,7 @@ function ouvrirForfait(paireId){
   document.getElementById('modal-forfait').style.display='flex';
 }
 
-function appliquerForfait(mode){
+async function appliquerForfait(mode){
   if(!genData||!forfaitPaireId)return;
   const idx=genData.paires.findIndex(x=>x.id===forfaitPaireId);
   if(idx===-1)return;
@@ -845,10 +846,9 @@ function appliquerForfait(mode){
   const aNouvellepaire=nvPren1&&nvNom1&&nvPoids;
   if(mode==='supprimer'){
     if(genData.paires.length<=12){alert('Il faut au moins 12 paires pour supprimer sans remplacer.');return;}
-    genData.paires.splice(idx,1);
-    genData.paires.forEach((p,i)=>{p.id=i+1;p.ts=i<8?'TS'+(i+1):null;});
+    const paireASupprimer = genData.paires[idx];
     closeModal('modal-forfait');
-    regenererAvecPaires(genData.paires);
+    await appliquerModifMinimale('forfait', null, paireASupprimer.id);
     return;
   }
   if(!aNouvellepaire){alert('Remplis au moins Prénom J1, Nom J1 et le Poids pour la nouvelle paire.');return;}
@@ -868,12 +868,30 @@ function appliquerForfait(mode){
   closeModal('modal-forfait');
   if(mode==='recalcul'){
     genData.paires[idx]=nouvellePaire;
-    regenererAvecPaires(genData.paires);
+    await appliquerModifMinimale('ajout', nouvellePaire, null);
+    return;
   } else {
-    genData.paires[idx]=nouvellePaire;
-    mettreAJourRefs(forfaitPaireId, nouvellePaire);
-    renTab(genData); renH(genData); renMsg(genData);
-    showToast('✅ Forfait appliqué — même position dans le tableau');
+    // Mode même position : forfait + remplaçante via algo minimal
+    closeModal('modal-forfait');
+    showToast('⏳ Calcul des modifications...');
+    try {
+      const r = await fetch('/tournoi/modifier', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          paires: genData.paires,
+          action: 'forfait',
+          forfaitId: forfaitPaireId,
+          remplacante: nouvellePaire,
+        })
+      });
+      const result = await r.json();
+      if(!result.ok) throw new Error(result.error||'Erreur');
+      afficherPairesImpactees(result.pairesImpactees);
+      csvText = result.csvSynthetique;
+      await generer();
+      showToast('✅ Forfait appliqué — ' + result.nbImpactees + ' paire(s) impactée(s)');
+    } catch(e){ alert('Erreur : '+e.message); }
+    return;
   }
 }
 
