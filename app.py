@@ -895,6 +895,171 @@ def supprimer_historique_sms(hid):
         conn.commit()
     return jsonify({'ok': True})
 
+
+@app.route('/pdf/accueil', methods=['POST'])
+def pdf_accueil():
+    """Génère la feuille d'accueil caisse A4 portrait."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Données manquantes'}), 400
+
+        messages  = data.get('messages', [])
+        nom_tournoi = data.get('nomTournoi', '')
+        date_str    = data.get('dateStr', '')
+        nb_pistes   = data.get('nbPistes', 2)
+
+        # Construire liste joueurs dédupliquée par paire, triée par heure convocation
+        paires_vues = {}
+        for m in messages:
+            key = m.get('paire','')
+            if key and key not in paires_vues:
+                paires_vues[key] = m
+
+        def hconv_to_min(h):
+            try:
+                parts = h.replace('h','').split(':')
+                return int(parts[0])*60 + int(parts[1]) if len(parts)==2 else 0
+            except:
+                return 0
+
+        joueurs = []
+        for m in messages:
+            # Extraire infos depuis le message
+            msg = m.get('msg','')
+            hconv_m = re.search(r"Convocation\s*:\s*(\d{2}:\d{2})h", msg)
+            hmatch_m = re.search(r"D.but pr.vu\s*:\s*(\d{2}:\d{2})h", msg)
+            terrain_m = re.search(r"Terrain\s*(\d+)", msg)
+            match_m = re.search(r"Match\s*M(\d+)", msg)
+            adv_m = re.search(r"Adversaires\s*:\s*(.+)", msg)
+            bye_m = 'Exempt du 1er tour' in msg or 'quart de finale' in msg.lower()
+
+            hconv   = hconv_m.group(1) if hconv_m else '?'
+            hmatch  = hmatch_m.group(1) if hmatch_m else '?'
+            terrain = terrain_m.group(1) if terrain_m else '?'
+            num_match = match_m.group(1) if match_m else '?'
+            adversaire = adv_m.group(1).strip() if adv_m else ('BYE → Quart de finale' if bye_m else '—')
+
+            joueurs.append({
+                'prenom': m.get('prenom',''),
+                'nom':    m.get('nom','').upper(),
+                'paire':  m.get('paire',''),
+                'ts':     m.get('ts',''),
+                'hconv':  hconv,
+                'hmatch': hmatch,
+                'terrain':terrain,
+                'match':  num_match,
+                'adv':    adversaire,
+                'bye':    bye_m,
+                'hconv_min': hconv_to_min(hconv),
+            })
+
+        joueurs.sort(key=lambda j: (j['hconv_min'], j['nom']))
+
+        # Générer le PDF
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+            leftMargin=15*mm, rightMargin=15*mm,
+            topMargin=15*mm, bottomMargin=15*mm)
+
+        styles = getSampleStyleSheet()
+        or_color = colors.HexColor('#E8500A')
+        dk_color = colors.HexColor('#1A1A1A')
+
+        story = []
+
+        # En-tête
+        title_style = ParagraphStyle('title', fontSize=16, fontName='Helvetica-Bold',
+            textColor=or_color, alignment=TA_CENTER, spaceAfter=4)
+        sub_style = ParagraphStyle('sub', fontSize=10, fontName='Helvetica',
+            textColor=colors.HexColor('#555555'), alignment=TA_CENTER, spaceAfter=2)
+        info_style = ParagraphStyle('info', fontSize=9, fontName='Helvetica',
+            textColor=colors.HexColor('#333333'), alignment=TA_CENTER, spaceAfter=8)
+
+        story.append(Paragraph('ARENA18 PADEL CLUB', title_style))
+        story.append(Paragraph(nom_tournoi, sub_style))
+        story.append(Paragraph(f'{date_str}  ·  {len(joueurs)} joueurs  ·  {nb_pistes} piste(s)', info_style))
+
+        # Ligne séparatrice
+        from reportlab.platypus import HRFlowable
+        story.append(HRFlowable(width='100%', thickness=2, color=or_color, spaceAfter=8))
+
+        # Tableau
+        col_w = [42*mm, 22*mm, 20*mm, 22*mm, 47*mm, 17*mm]  # Joueur, Convoc, Match, Terrain, Adversaire, Payé
+
+        header = ['JOUEUR', 'CONVOC.', 'MATCH', 'TERRAIN', 'ADVERSAIRE', 'PAYÉ ☐']
+        rows = [header]
+
+        for j in joueurs:
+            nom_aff = f"{j['prenom']} {j['nom']}"
+            if j['ts']:
+                nom_aff += f"  ({j['ts']})"
+            terrain_aff = f"T.{j['terrain']}" if j['terrain'] != '?' else '?'
+            match_aff = f"M{j['match']}" if j['match'] != '?' else '?'
+            rows.append([
+                nom_aff,
+                j['hconv'] + 'h',
+                match_aff,
+                terrain_aff,
+                j['adv'],
+                '☐',
+            ])
+
+        t = Table(rows, colWidths=col_w, repeatRows=1)
+        t.setStyle(TableStyle([
+            # Header
+            ('BACKGROUND', (0,0), (-1,0), or_color),
+            ('TEXTCOLOR',  (0,0), (-1,0), colors.white),
+            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0,0), (-1,0), 8),
+            ('ALIGN',      (0,0), (-1,0), 'CENTER'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 6),
+            ('TOPPADDING',    (0,0), (-1,0), 6),
+            # Data
+            ('FONTNAME',   (0,1), (-1,-1), 'Helvetica'),
+            ('FONTSIZE',   (0,1), (-1,-1), 8),
+            ('ALIGN',      (1,1), (3,-1), 'CENTER'),
+            ('ALIGN',      (0,1), (0,-1), 'LEFT'),
+            ('ALIGN',      (4,1), (4,-1), 'LEFT'),
+            ('ALIGN',      (5,0), (5,-1), 'CENTER'),
+            ('FONTSIZE',   (5,1), (5,-1), 12),
+            ('TOPPADDING',    (0,1), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,1), (-1,-1), 5),
+            # Alternance lignes
+            *[('BACKGROUND', (0,i), (-1,i), colors.HexColor('#F8F5F2') if i%2==0 else colors.white)
+              for i in range(1, len(rows))],
+            # Grille
+            ('GRID',    (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('LINEBELOW', (0,0), (-1,0), 1.5, or_color),
+        ]))
+        story.append(t)
+
+        story.append(Spacer(1, 8*mm))
+
+        # Pied de page
+        footer_style = ParagraphStyle('footer', fontSize=7, fontName='Helvetica',
+            textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
+        story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#CCCCCC'), spaceAfter=4))
+        story.append(Paragraph('ARENA18 PADEL CLUB  ·  PLAY HARD. ENJOY MORE.  ·  Document généré par JAP Tool', footer_style))
+
+        doc.build(story)
+        buf.seek(0)
+
+        nom_fichier = f"accueil_{nom_tournoi[:20].replace(' ','_')}.pdf"
+        return send_file(io.BytesIO(buf.read()), mimetype='application/pdf',
+            as_attachment=True, download_name=nom_fichier)
+
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
+
 @app.route('/pdf/tableau', methods=['POST'])
 def pdf_tableau():
     data = request.get_json()
