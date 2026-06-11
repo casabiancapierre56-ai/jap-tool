@@ -637,17 +637,53 @@ def supprimer_tournoi(tid):
 
 @app.route('/tournoi/modifier', methods=['POST'])
 def modifier_tournoi():
-    """Modifie un tournoi en minimisant les changements."""
+    """Modifie un tournoi en minimisant les changements.
+    Compare les horaires AVANT et APRES pour ne lister que les paires
+    dont la convocation change réellement."""
     data = request.get_json()
     paires_actuelles = data['paires']
-    action           = data['action']  # 'ajout' ou 'forfait'
+    action           = data['action']
     nouvelle_paire   = data.get('nouvellePaire')
     forfait_id       = data.get('forfaitId')
+    # Params horaires pour calcul avant/après
+    heure_debut      = data.get('heureDebut', '09:00')
+    nb_pistes        = int(data.get('nbPistes', 2))
+    duree_principal  = int(data.get('dureeMatchPrincipal', 45))
+    duree_classement = int(data.get('dureeMatchClassement', 45))
+
+    def calc_hconv_paires(paires):
+        """Calcule l'heure de convocation de chaque paire (heure match - 15min)."""
+        if len(paires) < 8:
+            return {}
+        try:
+            T, _, _ = build_tableau(paires)
+            horaires = calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, {}, T)
+            result = {}
+            # Matchs 1/8
+            for num, (sa, sb) in {1:(2,3), 2:(4,5), 3:(10,11), 4:(12,13)}.items():
+                h_m, _ = horaires[num]
+                result[T[sa]['p']['nf']] = sub_min(h_m, 15)
+                result[T[sb]['p']['nf']] = sub_min(h_m, 15)
+            # BYE → QF
+            for slot_idx, qf_num in [(0,7),(6,8),(8,9),(14,10)]:
+                p = T[slot_idx]['p']
+                h_m, _ = horaires[qf_num]
+                result[p['nf']] = sub_min(h_m, 15)
+        except Exception:
+            result = {}
+        return result
+
+    # Horaires AVANT
+    hconv_avant = calc_hconv_paires(paires_actuelles)
 
     # Snapshot avant
     avant = {}
     for p in paires_actuelles:
-        avant[p['nf']] = {'ts': p.get('ts'), 'poids': p['poids'], 'nf': p['nf'], 'id': p['id']}
+        avant[p['nf']] = {
+            'ts': p.get('ts'), 'poids': p['poids'],
+            'nf': p['nf'], 'id': p['id'],
+            'bye': p.get('ts') and int(p['ts'].replace('TS','')) <= 4,
+        }
 
     nouvelles_paires = [p.copy() for p in paires_actuelles]
 
@@ -665,31 +701,66 @@ def modifier_tournoi():
             remplacante['nf'] = remplacante['prenJ1'] + ' ' + remplacante['nomJ1'] + ' / ' + remplacante['prenJ2'] + ' ' + remplacante['nomJ2']
             nouvelles_paires.append(remplacante)
 
-    # Retrier par poids
+    # Retrier et recalculer TS
     nouvelles_paires.sort(key=lambda p: p['poids'])
-
-    # Recalculer IDs et TS
     for i, p in enumerate(nouvelles_paires):
         p['id']  = i + 1
         p['ts']  = 'TS' + str(i+1) if i < 8 else None
         p['nc']  = p['nomJ1'].upper() + ' / ' + p['nomJ2'].upper()
         p['nf']  = p['prenJ1'] + ' ' + p['nomJ1'] + ' / ' + p['prenJ2'] + ' ' + p['nomJ2']
 
-    # Detecter paires impactees
+    # Horaires APRÈS
+    hconv_apres = calc_hconv_paires(nouvelles_paires)
+
+    # Détecter paires impactées — uniquement si heure convocation change
     paires_impactees = []
     for p in nouvelles_paires:
         ancien = avant.get(p['nf'])
-        if ancien is None:
-            paires_impactees.append({'paire': p, 'raison': 'nouvelle', 'ancien_ts': None, 'nouveau_ts': p['ts']})
-        elif ancien['ts'] != p['ts']:
-            paires_impactees.append({'paire': p, 'raison': 'changement_ts', 'ancien_ts': ancien['ts'], 'nouveau_ts': p['ts']})
+        h_av   = hconv_avant.get(p['nf'], '?')
+        h_ap   = hconv_apres.get(p['nf'], '?')
+        ancien_bye = ancien and ancien.get('bye', False)
+        nouveau_bye = p['ts'] and int(p['ts'].replace('TS','')) <= 4
 
+        if ancien is None:
+            # Nouvelle paire
+            paires_impactees.append({
+                'paire': p, 'raison': 'nouvelle',
+                'ancien_ts': None, 'nouveau_ts': p['ts'],
+                'hconv_avant': None, 'hconv_apres': h_ap,
+            })
+        elif ancien_bye and not nouveau_bye:
+            # Perd le BYE — toujours impactée même si heure identique
+            paires_impactees.append({
+                'paire': p, 'raison': 'perd_bye',
+                'ancien_ts': ancien['ts'], 'nouveau_ts': p['ts'],
+                'hconv_avant': h_av, 'hconv_apres': h_ap,
+            })
+        elif not ancien_bye and nouveau_bye:
+            # Gagne un BYE
+            paires_impactees.append({
+                'paire': p, 'raison': 'gagne_bye',
+                'ancien_ts': ancien['ts'], 'nouveau_ts': p['ts'],
+                'hconv_avant': h_av, 'hconv_apres': h_ap,
+            })
+        elif h_av != h_ap and h_av != '?' and h_ap != '?':
+            # Heure de convocation change
+            paires_impactees.append({
+                'paire': p, 'raison': 'heure_change',
+                'ancien_ts': ancien['ts'], 'nouveau_ts': p['ts'],
+                'hconv_avant': h_av, 'hconv_apres': h_ap,
+            })
+
+    # Paire forfait sortante
     if action == 'forfait' and forfait_id is not None:
         paire_sortie = next((p for p in paires_actuelles if p['id'] == forfait_id), None)
         if paire_sortie:
-            paires_impactees.append({'paire': paire_sortie, 'raison': 'forfait', 'ancien_ts': paire_sortie.get('ts'), 'nouveau_ts': None})
+            paires_impactees.append({
+                'paire': paire_sortie, 'raison': 'forfait',
+                'ancien_ts': paire_sortie.get('ts'), 'nouveau_ts': None,
+                'hconv_avant': hconv_avant.get(paire_sortie['nf']), 'hconv_apres': None,
+            })
 
-    # CSV synthetique pour regeneration
+    # CSV synthetique
     csv_lines = ['Epreuve;Equipe;Num;Nom J1;Prenom J1;Age J1;Lic J1;Clt J1;Nat J1;Ent J1;Tel J1;Nom J2;Prenom J2;Age J2;Lic J2;Clt J2;Nat J2;Ent J2;Tel J2;Poids']
     for i, p in enumerate(nouvelles_paires):
         tel1 = p.get('telJ1','').strip()
