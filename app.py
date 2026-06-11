@@ -4,6 +4,7 @@ JAP Tool v3 — Application web Padel FFT
 Arena18 — jap.myconvi.fr
 """
 from flask import Flask, request, jsonify, render_template, send_file
+import re
 import io, json, base64, random, os, sqlite3
 from datetime import datetime
 from pypdf import PdfReader, PdfWriter
