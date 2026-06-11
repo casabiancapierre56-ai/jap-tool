@@ -218,6 +218,7 @@ tr:hover td{background:var(--dk3);}
     <div id="contraintes-list"></div>
     <div class="div"></div>
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
+    <button class="btn btn2" id="b-new" onclick="nouveauTournoi()" style="border-color:#9b59b6;color:#9b59b6;margin-top:5px;">🆕 Nouveau tournoi</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
     <button class="btn btn2" id="b-ajout" onclick="ouvrirAjoutPaire()" disabled style="border-color:var(--gr);color:var(--gr);">➕ Ajouter une paire</button>
@@ -520,6 +521,7 @@ async function generer(){
     if(data.error){alert(data.error);return;}
     genData=data;
     sauvegarderSession();
+    sauvegarderEnBaseAuto();
     renTab(data); renH(data); renMsg(data); renConvocations(data);
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
@@ -1068,37 +1070,60 @@ restaurerSession();
 // SYSTÈME TOURNOIS SQLITE
 // ══════════════════════════════════════
 
+function getTournoiPayload(){
+  const dt = document.getElementById('dt').value;
+  return {
+    nom:      document.getElementById('nt').value,
+    dateStr:  dt,
+    nbPaires: genData ? genData.paires.length : 0,
+    niveau:   document.getElementById('niveau').value,
+    genData:  genData,
+    tournoiId: window._tournoiIdEnCours || null,
+    params: {
+      nomTournoi: document.getElementById('nt').value,
+      sponsor:    document.getElementById('sp').value,
+      dt,
+      hd:    document.getElementById('hd').value,
+      np:    document.getElementById('np').value,
+      dp:    document.getElementById('dp').value,
+      dc:    document.getElementById('dc').value,
+      fg:    document.getElementById('fg').value,
+      fgCls: document.getElementById('fg-cls').value,
+      niveau:document.getElementById('niveau').value,
+    }
+  };
+}
+
+async function sauvegarderEnBaseAuto(){
+  if(!genData) return;
+  try {
+    const r = await fetch('/tournoi/sauvegarder', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(getTournoiPayload())
+    });
+    const data = await r.json();
+    if(data.ok){
+      window._tournoiIdEnCours = data.id;
+      // Mettre à jour aussi dans localStorage
+      sauvegarderSession();
+    }
+  } catch(e) { console.error('Sauvegarde auto échouée:', e); }
+}
+
 async function sauvegarderEnBase(){
   if(!genData) return;
   const btn = document.getElementById('b-db');
   btn.disabled = true; btn.textContent = '⏳ Sauvegarde...';
   try {
-    const dt = document.getElementById('dt').value;
     const r = await fetch('/tournoi/sauvegarder', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        nom:      document.getElementById('nt').value,
-        dateStr:  dt,
-        nbPaires: genData.paires.length,
-        niveau:   document.getElementById('niveau').value,
-        genData:  genData,
-        params: {
-          nomTournoi: document.getElementById('nt').value,
-          sponsor:    document.getElementById('sp').value,
-          dt,
-          hd:    document.getElementById('hd').value,
-          np:    document.getElementById('np').value,
-          dp:    document.getElementById('dp').value,
-          dc:    document.getElementById('dc').value,
-          fg:    document.getElementById('fg').value,
-          fgCls: document.getElementById('fg-cls').value,
-          niveau:document.getElementById('niveau').value,
-        }
-      })
+      body: JSON.stringify(getTournoiPayload())
     });
     const data = await r.json();
     if(data.ok){
+      window._tournoiIdEnCours = data.id;
       showToast(`✅ ${data.message}`);
       btn.textContent = '✅ Sauvegardé !';
       btn.style.borderColor = 'var(--gr)';
@@ -1117,6 +1142,36 @@ async function sauvegarderEnBase(){
     btn.disabled = false;
     btn.textContent = '🗄️ Sauvegarder en base';
   }
+}
+
+async function nouveauTournoi(){
+  if(genData){
+    // Sauvegarder le tournoi en cours avant de réinitialiser
+    showToast('💾 Sauvegarde du tournoi en cours...');
+    await sauvegarderEnBaseAuto();
+    showToast('✅ Tournoi sauvegardé — nouveau tournoi prêt !');
+  }
+  // Réinitialiser
+  window._tournoiIdEnCours = null;
+  csvText=''; genData=null; pairesLoaded=[];
+  document.getElementById('dz-ok').style.display='none';
+  document.getElementById('dz').classList.remove('ok');
+  document.getElementById('bg').disabled=true;
+  document.getElementById('b-tab').disabled=true;
+  document.getElementById('b-fdr').disabled=true;
+  document.getElementById('b-csv').disabled=true;
+  document.getElementById('b-db').disabled=true;
+  document.getElementById('b-wa').disabled=true;
+  document.getElementById('b-ajout').disabled=true;
+  localStorage.removeItem('jap_session');
+  document.getElementById('tw-box').style.display='none';
+  document.getElementById('fi-csv').value='';
+  document.getElementById('contraintes-list').innerHTML='';
+  // Remettre la date à aujourd'hui
+  document.getElementById('dt').value=new Date().toISOString().split('T')[0];
+  ['tt','th','tm','tc'].forEach(t=>document.getElementById(t).innerHTML=`<div class="empty"><div class="empty-i">🎾</div>En attente</div>`);
+  document.getElementById('sb').textContent='En attente du CSV FFT';
+  st('tt');
 }
 
 async function chargerListeTournois(){
@@ -1192,6 +1247,7 @@ async function chargerTournoi(tid){
     document.getElementById('b-fdr').disabled = false;
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
+    window._tournoiIdEnCours = t.id;
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
