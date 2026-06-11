@@ -571,6 +571,8 @@ async function envoyerSMS(){
   const tok=document.getElementById('tw-tok').value;
   const num=document.getElementById('tw-num').value;
   if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio !');return;}
+  const nbJoueurs = genData.messages.filter(m=>m.telClean).length;
+  if(!confirm(`⚠️ Confirmer l'envoi SMS\n\nTu es sur le point d'envoyer ${nbJoueurs} SMS de convocation.\n\nChaque SMS sera facturé sur ton compte Twilio.\n\nConfirmer l'envoi ?`)) return;
   const btn=event.target; btn.disabled=true; btn.textContent='📤 Envoi...';
   try {
     const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
