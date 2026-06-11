@@ -34,6 +34,17 @@ def init_db():
                 cree_le   TEXT NOT NULL
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS sms_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournoi_nom TEXT NOT NULL,
+                tournoi_id  INTEGER,
+                date_envoi  TEXT NOT NULL,
+                nb_envoyes  INTEGER,
+                nb_total    INTEGER,
+                details     TEXT NOT NULL
+            )
+        ''')
         conn.commit()
 
 init_db()
@@ -831,6 +842,58 @@ def modifier_tournoi():
         'csvSynthetique':  '\n'.join(csv_lines),
         'nbImpactees':     len(paires_impactees),
     })
+
+
+@app.route('/sms/historique/sauvegarder', methods=['POST'])
+def sauvegarder_historique_sms():
+    """Sauvegarde un envoi SMS en base."""
+    data = request.get_json()
+    tournoi_nom = data.get('tournoiNom', 'Tournoi inconnu')
+    tournoi_id  = data.get('tournoiId')
+    nb_envoyes  = data.get('nbEnvoyes', 0)
+    nb_total    = data.get('nbTotal', 0)
+    details     = json.dumps(data.get('details', []), ensure_ascii=False)
+    date_envoi  = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+    with get_db() as conn:
+        conn.execute(
+            'INSERT INTO sms_history (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details) VALUES (?,?,?,?,?,?)',
+            (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details)
+        )
+        conn.commit()
+
+    return jsonify({'ok': True})
+
+
+@app.route('/sms/historique/liste', methods=['GET'])
+def liste_historique_sms():
+    """Retourne l'historique des envois SMS."""
+    with get_db() as conn:
+        rows = conn.execute(
+            'SELECT id, tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total FROM sms_history ORDER BY id DESC LIMIT 100'
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/sms/historique/detail/<int:hid>', methods=['GET'])
+def detail_historique_sms(hid):
+    """Retourne le détail d'un envoi SMS."""
+    with get_db() as conn:
+        row = conn.execute('SELECT * FROM sms_history WHERE id=?', (hid,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Introuvable'}), 404
+    r = dict(row)
+    r['details'] = json.loads(r['details'])
+    return jsonify(r)
+
+
+@app.route('/sms/historique/supprimer/<int:hid>', methods=['DELETE'])
+def supprimer_historique_sms(hid):
+    """Supprime une entrée de l'historique."""
+    with get_db() as conn:
+        conn.execute('DELETE FROM sms_history WHERE id=?', (hid,))
+        conn.commit()
+    return jsonify({'ok': True})
 
 @app.route('/pdf/tableau', methods=['POST'])
 def pdf_tableau():
