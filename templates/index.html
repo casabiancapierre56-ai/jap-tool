@@ -878,10 +878,14 @@ async function appliquerForfait(mode){
       const r = await fetch('/tournoi/modifier', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          paires: genData.paires,
-          action: 'forfait',
-          forfaitId: forfaitPaireId,
-          remplacante: nouvellePaire,
+          paires:              genData.paires,
+          action:              'forfait',
+          forfaitId:           forfaitPaireId,
+          remplacante:         nouvellePaire,
+          heureDebut:          document.getElementById('hd').value,
+          nbPistes:            parseInt(document.getElementById('np').value),
+          dureeMatchPrincipal: parseInt(document.getElementById('dp').value),
+          dureeMatchClassement:parseInt(document.getElementById('dc').value),
         })
       });
       const result = await r.json();
@@ -1418,10 +1422,14 @@ async function appliquerModifMinimale(action, nouvellePaire, forfaitId){
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        paires:       genData.paires,
+        paires:              genData.paires,
         action,
         nouvellePaire,
         forfaitId,
+        heureDebut:          document.getElementById('hd').value,
+        nbPistes:            parseInt(document.getElementById('np').value),
+        dureeMatchPrincipal: parseInt(document.getElementById('dp').value),
+        dureeMatchClassement:parseInt(document.getElementById('dc').value),
       })
     });
     const result = await r.json();
@@ -1462,16 +1470,21 @@ function afficherPairesImpactees(impactees){
     let raisonCls = '';
     if(imp.raison === 'nouvelle'){
       raisonCls = 'nouvelle';
-      raisonHtml = `➕ Nouvelle inscription · ${imp.nouveau_ts || '1/8'}`;
-    } else if(imp.raison === 'changement_ts'){
+      const hap = imp.hconv_apres ? ` · Convocation ${imp.hconv_apres}` : '';
+      raisonHtml = `➕ Nouvelle inscription · ${imp.nouveau_ts || '1/8'}${hap}`;
+    } else if(imp.raison === 'perd_bye'){
       raisonCls = 'changement';
-      const av = imp.ancien_ts || '1/8';
-      const nv = imp.nouveau_ts || '1/8';
-      const avBye = imp.ancien_ts && parseInt(imp.ancien_ts.replace('TS','')) <= 4;
-      const nvBye = imp.nouveau_ts && parseInt(imp.nouveau_ts.replace('TS','')) <= 4;
-      if(avBye && !nvBye) raisonHtml = `🔴 Perd le BYE : ${av} → ${nv} (1/8)`;
-      else if(!avBye && nvBye) raisonHtml = `🟢 Gagne un BYE : ${av} → ${nv}`;
-      else raisonHtml = `🟡 ${av} → ${nv}`;
+      const av = imp.hconv_avant || '?';
+      const ap = imp.hconv_apres || '?';
+      raisonHtml = `🔴 Perd le BYE → 1/8 · Convocation ${av} → ${ap}`;
+    } else if(imp.raison === 'gagne_bye'){
+      raisonCls = 'nouvelle';
+      const av = imp.hconv_avant || '?';
+      const ap = imp.hconv_apres || '?';
+      raisonHtml = `🟢 Gagne un BYE · Convocation ${av} → ${ap}`;
+    } else if(imp.raison === 'heure_change'){
+      raisonCls = 'changement';
+      raisonHtml = `🟡 Convocation ${imp.hconv_avant} → ${imp.hconv_apres}`;
     } else if(imp.raison === 'forfait'){
       raisonCls = 'forfait';
       raisonHtml = `🗑️ Forfait — retiré du tableau`;
