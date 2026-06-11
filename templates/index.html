@@ -137,6 +137,22 @@ tr:hover td{background:var(--dk3);}
 .conv-stat{background:var(--dk2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-family:var(--mo);font-size:11px;}
 .conv-stat span{display:block;font-size:18px;font-weight:700;color:var(--or);}
 
+
+/* ── PANNEAU IMPACTÉES ── */
+.impact-panel{background:#1a1200;border:1px solid var(--am);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
+.impact-title{font-size:11px;font-weight:700;color:var(--am);font-family:var(--mo);margin-bottom:10px;letter-spacing:.06em;}
+.impact-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #2a2000;}
+.impact-row:last-child{border-bottom:none;}
+.impact-paire{flex:1;font-size:11px;font-weight:600;}
+.impact-raison{font-size:10px;font-family:var(--mo);}
+.impact-raison.nouvelle{color:var(--gr);}
+.impact-raison.changement{color:var(--am);}
+.impact-raison.forfait{color:#e74c3c;}
+.impact-btn{background:var(--or);color:#fff;border:none;padding:4px 10px;border-radius:5px;font-family:var(--mo);font-size:10px;cursor:pointer;white-space:nowrap;}
+.impact-btn:hover{background:var(--orl);}
+.impact-btn-all{width:100%;margin-top:10px;padding:8px;border-radius:7px;background:#2a1800;border:1px solid var(--am);color:var(--am);font-family:var(--mo);font-size:11px;font-weight:700;cursor:pointer;}
+.impact-btn-all:hover{background:var(--am);color:#000;}
+
 /* ── ONGLET TOURNOIS ── */
 .t-card{background:var(--dk2);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;transition:all .2s;}
 .t-card:hover{border-color:var(--or);background:var(--dk3);}
@@ -204,6 +220,7 @@ tr:hover td{background:var(--dk3);}
     <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
     <button class="btn btn2" id="b-tab" onclick="dlPdf('tableau')" disabled>📄 Tableau officiel FFT (PDF)</button>
     <button class="btn btn2" id="b-fdr" onclick="dlPdf('feuille')" disabled>🖨 Feuille de route (PDF)</button>
+    <button class="btn btn2" id="b-ajout" onclick="ouvrirAjoutPaire()" disabled style="border-color:var(--gr);color:var(--gr);">➕ Ajouter une paire</button>
     <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 Exporter CSV</button>
     <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Sauvegarder en base</button>
     <div class="tw-box" id="tw-box" style="display:none">
@@ -232,6 +249,51 @@ tr:hover td{background:var(--dk3);}
     <div id="tc" style="display:none"><div class="empty"><div class="empty-i">📋</div>Les convocations apparaîtront ici</div></div>
   <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div>
   </div>
+</div>
+
+
+<!-- MODAL AJOUTER PAIRE -->
+<div class="modal-bg" id="modal-ajout" style="display:none" onclick="if(event.target===this)closeModal('modal-ajout')">
+<div class="modal">
+  <h2>➕ Ajouter une paire</h2>
+  <div class="modal-sub">La paire sera insérée selon son poids — seules les paires impactées seront listées pour recontact.</div>
+  <div class="modal-section">
+    <div class="modal-section-title">👤 Joueur 1</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom</label><input id="aj-pren1" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom</label><input id="aj-nom1" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence</label><input id="aj-lic1" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Téléphone</label><input id="aj-tel1" placeholder="06XXXXXXXX"/></div>
+    </div>
+  </div>
+  <div class="modal-section">
+    <div class="modal-section-title">👤 Joueur 2</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Prénom</label><input id="aj-pren2" placeholder="Prénom"/></div>
+      <div class="modal-fi"><label>Nom</label><input id="aj-nom2" placeholder="NOM"/></div>
+    </div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Licence</label><input id="aj-lic2" placeholder="XXXXXXXX"/></div>
+      <div class="modal-fi"><label>Téléphone</label><input id="aj-tel2" placeholder="06XXXXXXXX"/></div>
+    </div>
+  </div>
+  <div class="modal-section">
+    <div class="modal-section-title">🏆 Classement & Poids</div>
+    <div class="modal-row2">
+      <div class="modal-fi"><label>Classement J1</label><input id="aj-clt1" type="number" placeholder="ex: 6500" oninput="calcPoidsAjout()"/></div>
+      <div class="modal-fi"><label>Classement J2</label><input id="aj-clt2" type="number" placeholder="ex: 6000" oninput="calcPoidsAjout()"/></div>
+    </div>
+    <div class="modal-fi"><label>Poids <span style="color:var(--tx2);font-size:9px;">(calculé auto)</span></label>
+      <input id="aj-poids" type="number" placeholder="Calculé automatiquement" style="border-color:var(--gr);"/>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="modal-btn cancel" onclick="closeModal('modal-ajout')">Annuler</button>
+    <button class="modal-btn primary" onclick="appliquerAjout()">➕ Ajouter et recalculer</button>
+  </div>
+</div>
 </div>
 
 <!-- MODAL MODIFIER JOUEUR -->
@@ -464,6 +526,7 @@ async function generer(){
     document.getElementById('b-csv').disabled=false;
     document.getElementById('b-db').disabled=false;
     document.getElementById('b-wa').disabled=false;
+    document.getElementById('b-ajout').disabled=false;
     document.getElementById('tw-box').style.display='block';
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     if(data.alertes?.length) renAlertes(data.alertes);
@@ -679,6 +742,7 @@ function raz(){
   document.getElementById('b-csv').disabled=true;
   document.getElementById('b-db').disabled=true;
   document.getElementById('b-wa').disabled=true;
+  document.getElementById('b-ajout').disabled=true;
   localStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
@@ -956,6 +1020,7 @@ function appliquerRestauration(){
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
     document.getElementById('b-wa').disabled  = false;
+    document.getElementById('b-ajout').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
     document.getElementById('restore-banner').remove();
@@ -1102,6 +1167,7 @@ async function chargerTournoi(tid){
     document.getElementById('b-csv').disabled = false;
     document.getElementById('b-db').disabled  = false;
     document.getElementById('b-wa').disabled  = false;
+    document.getElementById('b-ajout').disabled = false;
     document.getElementById('tw-box').style.display = 'block';
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré depuis base · ${t.cree_le}`;
     sauvegarderSession();
@@ -1281,6 +1347,161 @@ function renvoyerConvocation(paireNom){
     if(data.sent > 0) showToast('✅ SMS renvoyé à ' + paireNom);
     else showToast('❌ Erreur envoi SMS');
   });
+}
+
+
+// ══════════════════════════════════════
+// AJOUT PAIRE + MODIFICATIONS MINIMALES
+// ══════════════════════════════════════
+
+function calcPoidsAjout(){
+  const c1=parseInt(document.getElementById('aj-clt1').value)||0;
+  const c2=parseInt(document.getElementById('aj-clt2').value)||0;
+  if(c1&&c2) document.getElementById('aj-poids').value=c1+c2;
+}
+
+function ouvrirAjoutPaire(){
+  ['aj-pren1','aj-nom1','aj-lic1','aj-tel1','aj-pren2','aj-nom2','aj-lic2','aj-tel2','aj-clt1','aj-clt2','aj-poids']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-ajout').style.display='flex';
+}
+
+async function appliquerAjout(){
+  const pren1=document.getElementById('aj-pren1').value.trim();
+  const nom1 =document.getElementById('aj-nom1').value.trim();
+  const poids=parseInt(document.getElementById('aj-poids').value)||0;
+  if(!pren1||!nom1||!poids){alert('Remplis au moins Prénom J1, Nom J1 et le Poids.');return;}
+
+  const nouvellePaire = {
+    nomJ1:  nom1,  prenJ1: pren1,
+    licJ1:  document.getElementById('aj-lic1').value,
+    telJ1:  document.getElementById('aj-tel1').value,
+    nomJ2:  document.getElementById('aj-nom2').value.trim(),
+    prenJ2: document.getElementById('aj-pren2').value.trim(),
+    licJ2:  document.getElementById('aj-lic2').value,
+    telJ2:  document.getElementById('aj-tel2').value,
+    poids,
+  };
+
+  closeModal('modal-ajout');
+  await appliquerModifMinimale('ajout', nouvellePaire, null);
+}
+
+async function appliquerModifMinimale(action, nouvellePaire, forfaitId){
+  if(!genData) return;
+  showToast('⏳ Calcul des modifications...');
+
+  try {
+    const r = await fetch('/tournoi/modifier', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        paires:       genData.paires,
+        action,
+        nouvellePaire,
+        forfaitId,
+      })
+    });
+    const result = await r.json();
+    if(!result.ok) throw new Error(result.error||'Erreur');
+
+    // Afficher le panneau des paires impactées
+    afficherPairesImpactees(result.pairesImpactees);
+
+    // Régénérer le tableau complet avec les nouvelles paires
+    csvText = result.csvSynthetique;
+    await generer();
+
+    showToast(`✅ ${result.nbImpactees} paire(s) impactée(s)`);
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  }
+}
+
+function afficherPairesImpactees(impactees){
+  // Supprimer ancien panneau
+  const old = document.getElementById('impact-panel');
+  if(old) old.remove();
+  if(!impactees||!impactees.length) return;
+
+  const tc2 = {TS1:'a',TS2:'a',TS3:'b',TS4:'b',TS5:'c',TS6:'c',TS7:'c',TS8:'c'};
+
+  let h = `<div id="impact-panel" class="impact-panel">
+    <div class="impact-title">⚠️ ${impactees.length} PAIRE(S) IMPACTÉE(S) — À RECONTACTER</div>`;
+
+  impactees.forEach((imp,i) => {
+    const p = imp.paire;
+    let raisonHtml = '';
+    let raisonCls = '';
+    if(imp.raison === 'nouvelle'){
+      raisonCls = 'nouvelle';
+      raisonHtml = `➕ Nouvelle inscription · ${imp.nouveau_ts || '1/8'}`;
+    } else if(imp.raison === 'changement_ts'){
+      raisonCls = 'changement';
+      const av = imp.ancien_ts || '1/8';
+      const nv = imp.nouveau_ts || '1/8';
+      const avBye = imp.ancien_ts && parseInt(imp.ancien_ts.replace('TS','')) <= 4;
+      const nvBye = imp.nouveau_ts && parseInt(imp.nouveau_ts.replace('TS','')) <= 4;
+      if(avBye && !nvBye) raisonHtml = `🔴 Perd le BYE : ${av} → ${nv} (1/8)`;
+      else if(!avBye && nvBye) raisonHtml = `🟢 Gagne un BYE : ${av} → ${nv}`;
+      else raisonHtml = `🟡 ${av} → ${nv}`;
+    } else if(imp.raison === 'forfait'){
+      raisonCls = 'forfait';
+      raisonHtml = `🗑️ Forfait — retiré du tableau`;
+    }
+
+    const tsBadge = p.ts ? `<span class="ts ${tc2[p.ts]||'c'}" style="margin-right:6px;">${p.ts}</span>` : '';
+
+    h += `<div class="impact-row">
+      <div class="impact-paire">${tsBadge}${p.nf||p.prenJ1+' '+p.nomJ1+' / '+p.prenJ2+' '+p.nomJ2}</div>
+      <div class="impact-raison ${raisonCls}">${raisonHtml}</div>
+      <button class="impact-btn" onclick="renvoyerConvocation('${(p.nf||'').replace(/'/g,"\'")}')">📤 Renvoyer</button>
+    </div>`;
+  });
+
+  h += `<button class="impact-btn-all" onclick="renvoyerTousImpactes()">
+    📤 Renvoyer à toutes les paires impactées (${impactees.length})
+  </button>`;
+  h += '</div>';
+
+  // Insérer en haut de l'onglet Tableau
+  const tabDiv = document.getElementById('tt');
+  tabDiv.insertAdjacentHTML('afterbegin', h);
+
+  // Stocker les impactées pour envoi groupé
+  window._pairesImpactees = impactees;
+
+  // Aller sur l'onglet tableau
+  st('tt');
+}
+
+async function renvoyerTousImpactes(){
+  if(!window._pairesImpactees||!_msgData) return;
+  const nomsPaires = window._pairesImpactees
+    .filter(i=>i.raison!=='forfait')
+    .map(i=>i.paire.nf||(i.paire.prenJ1+' '+i.paire.nomJ1+' / '+i.paire.prenJ2+' '+i.paire.nomJ2));
+
+  const msgs = _msgData.filter(m=>nomsPaires.includes(m.paire));
+  if(!msgs.length){showToast('Aucun message trouvé pour ces paires.');return;}
+
+  const sid=document.getElementById('tw-sid').value;
+  const tok=document.getElementById('tw-tok').value;
+  const num=document.getElementById('tw-num').value;
+
+  if(!sid||!tok||!num){
+    // WhatsApp
+    msgs.forEach(m=>{
+      if(m.telClean) window.open('https://wa.me/'+m.telClean+'?text='+encodeURIComponent(m.msg),'_blank');
+    });
+    showToast('💬 WhatsApp ouverts pour '+nomsPaires.length+' paire(s)');
+    return;
+  }
+
+  if(!confirm('Renvoyer SMS à '+msgs.length+' joueur(s) impacté(s) ?')) return;
+  const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({messages:msgs,twilioSid:sid,twilioToken:tok,twilioFrom:num})});
+  const data=await r.json();
+  showToast(data.sent>0?'✅ '+data.sent+' SMS envoyés aux paires impactées':'❌ Erreur envoi');
 }
 
 </script>
