@@ -596,16 +596,17 @@ def generer():
 
 @app.route('/tournoi/sauvegarder', methods=['POST'])
 def sauvegarder_tournoi():
-    """Sauvegarde un tournoi complet en base SQLite."""
+    """Sauvegarde ou met à jour un tournoi en base SQLite.
+    Si tournoiId est fourni, met à jour l'entrée existante."""
     data = request.get_json()
-    nom       = data.get('nom', 'Tournoi sans nom')
-    date_str  = data.get('dateStr', '')
-    nb_paires = data.get('nbPaires', 0)
-    niveau    = data.get('niveau', '')
-    gen_data  = data.get('genData', {})
-    params    = data.get('params', {})
+    nom        = data.get('nom', 'Tournoi sans nom')
+    date_str   = data.get('dateStr', '')
+    nb_paires  = data.get('nbPaires', 0)
+    niveau     = data.get('niveau', '')
+    gen_data   = data.get('genData', {})
+    params     = data.get('params', {})
+    tournoi_id = data.get('tournoiId')  # None = nouveau, int = mise à jour
 
-    # On sauvegarde tout le contexte (genData + params de formulaire)
     payload = json.dumps({
         'genData': gen_data,
         'params':  params,
@@ -614,14 +615,25 @@ def sauvegarder_tournoi():
     now = datetime.now().strftime('%d/%m/%Y %H:%M')
 
     with get_db() as conn:
-        cur = conn.execute(
-            'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
-            (nom, date_str, nb_paires, niveau, payload, now)
-        )
-        conn.commit()
-        tournoi_id = cur.lastrowid
+        if tournoi_id:
+            # Mise à jour tournoi existant
+            conn.execute(
+                'UPDATE tournois SET nom=?, date_str=?, nb_paires=?, niveau=?, data_json=?, cree_le=? WHERE id=?',
+                (nom, date_str, nb_paires, niveau, payload, now, tournoi_id)
+            )
+            conn.commit()
+            msg = f'Tournoi #{tournoi_id} mis à jour'
+        else:
+            # Nouveau tournoi
+            cur = conn.execute(
+                'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
+                (nom, date_str, nb_paires, niveau, payload, now)
+            )
+            conn.commit()
+            tournoi_id = cur.lastrowid
+            msg = f'Tournoi #{tournoi_id} sauvegardé'
 
-    return jsonify({'ok': True, 'id': tournoi_id, 'message': f'Tournoi #{tournoi_id} sauvegardé'})
+    return jsonify({'ok': True, 'id': tournoi_id, 'message': msg})
 
 
 @app.route('/tournoi/liste', methods=['GET'])
