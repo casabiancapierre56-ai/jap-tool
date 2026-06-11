@@ -117,6 +117,26 @@ tr:hover td{background:var(--dk3);}
 .choice-btn:hover{border-color:var(--or);background:#1f0f00;}
 .choice-btn span{display:block;font-size:9px;color:var(--tx2);margin-top:3px;}
 .warn-badge{display:inline-block;background:#3a1800;border:1px solid var(--am);color:var(--am);font-size:10px;font-family:var(--mo);padding:4px 10px;border-radius:6px;margin-bottom:12px;}
+
+/* ── ONGLET CONVOCATIONS ── */
+.conv-table{width:100%;border-collapse:collapse;font-family:var(--mo);font-size:11px;}
+.conv-table th{text-align:left;padding:8px 10px;color:var(--tx2);border-bottom:2px solid var(--bd);font-size:10px;letter-spacing:.06em;text-transform:uppercase;}
+.conv-table td{padding:8px 10px;border-bottom:1px solid var(--bd);vertical-align:middle;}
+.conv-table tr:hover td{background:var(--dk3);}
+.conv-table tr.bye-row td{background:#0a1a0a;}
+.conv-table tr.bye-row:hover td{background:#0d2010;}
+.conv-heure{font-size:15px;font-weight:700;color:var(--or);font-family:var(--mo);}
+.conv-paire{font-size:12px;font-weight:700;}
+.conv-adv{font-size:10px;color:var(--tx2);}
+.conv-bye{display:inline-block;font-size:9px;font-weight:700;background:#0d2010;border:1px solid var(--gr);color:var(--gr);padding:2px 7px;border-radius:3px;font-family:var(--mo);}
+.conv-match{font-size:12px;font-weight:700;color:var(--or);}
+.conv-terrain{font-size:11px;color:var(--tx2);}
+.conv-sms-ok{display:inline-block;font-size:9px;background:#0d2010;border:1px solid var(--gr);color:var(--gr);padding:2px 6px;border-radius:3px;cursor:pointer;}
+.conv-sms-ok:hover{background:#1a4a2e;}
+.conv-summary{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.conv-stat{background:var(--dk2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-family:var(--mo);font-size:11px;}
+.conv-stat span{display:block;font-size:18px;font-weight:700;color:var(--or);}
+
 /* ── ONGLET TOURNOIS ── */
 .t-card{background:var(--dk2);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;transition:all .2s;}
 .t-card:hover{border-color:var(--or);background:var(--dk3);}
@@ -203,12 +223,14 @@ tr:hover td{background:var(--dk3);}
       <button class="tab on" onclick="st('tt')">Tableau</button>
       <button class="tab" onclick="st('th')">Horaires</button>
       <button class="tab" onclick="st('tm')">WhatsApp</button>
+      <button class="tab" onclick="st('tc')">📋 Convocations</button>
       <button class="tab" onclick="st('ts2');chargerListeTournois()">📂 Tournois</button>
     </div>
     <div id="tt"><div class="empty"><div class="empty-i">🎾</div>Glisse le CSV FFT et clique Générer</div></div>
     <div id="th" style="display:none"><div class="empty"><div class="empty-i">🕐</div>Les horaires apparaîtront ici</div></div>
     <div id="tm" style="display:none"><div class="empty"><div class="empty-i">💬</div>Les messages apparaîtront ici</div></div>
-    <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div>
+    <div id="tc" style="display:none"><div class="empty"><div class="empty-i">📋</div>Les convocations apparaîtront ici</div></div>
+  <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div>
   </div>
 </div>
 
@@ -314,8 +336,8 @@ let csvText='', genData=null, pairesLoaded=[];
 let editPaireId=null, forfaitPaireId=null;
 
 function st(n){
-  ['tt','th','tm','ts2'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm','ts2'][i]===n));
+  ['tt','th','tm','tc','ts2'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm','tc','ts2'][i]===n));
 }
 
 function loadFile(file){
@@ -713,7 +735,7 @@ function appliquerModif(mode){
     regenererAvecPaires(genData.paires);
   } else {
     mettreAJourRefs(editPaireId, genData.paires[idx]);
-    renTab(genData); renH(genData); renMsg(genData);
+    renTab(genData); renH(genData); renMsg(genData); renConvocations(genData);
     if(genData.alertes) renAlertes(genData.alertes);
     showToast('✅ Paire modifiée — PDF et convocations mis à jour');
   }
@@ -927,7 +949,7 @@ function appliquerRestauration(){
     document.getElementById('niveau').value = p.niveau || 'P250';
     onNiveauChange();
     genData = session.genData;
-    renTab(genData); renH(genData); renMsg(genData);
+    renTab(genData); renH(genData); renMsg(genData); renConvocations(genData);
     if(genData.alertes) renAlertes(genData.alertes);
     document.getElementById('b-tab').disabled = false;
     document.getElementById('b-fdr').disabled = false;
@@ -1073,7 +1095,7 @@ async function chargerTournoi(tid){
       if(!found){const o=document.createElement('option');o.value=p.fgCls;o.textContent=p.fgCls;fgcSel.appendChild(o);fgcSel.value=p.fgCls;}
     }
     genData = session.genData;
-    renTab(genData); renH(genData); renMsg(genData);
+    renTab(genData); renH(genData); renMsg(genData); renConvocations(genData);
     if(genData.alertes) renAlertes(genData.alertes);
     document.getElementById('b-tab').disabled = false;
     document.getElementById('b-fdr').disabled = false;
@@ -1130,6 +1152,134 @@ function envoyerTousWhatsApp(){
     btn.textContent = '⏳ ' + (i+1) + '/' + valides.length + '...';
     i++;
   }, 1200);
+}
+
+
+// ══════════════════════════════════════
+// ONGLET CONVOCATIONS
+// ══════════════════════════════════════
+function renConvocations(d){
+  if(!d||!d.paires) return;
+
+  // Construire la map paire → infos convocation depuis les messages
+  const convMap = {};
+  d.messages.forEach(m => {
+    // Extraire heure convocation et match du message
+    const heureMatch = m.msg.match(/Convocation\s*:\s*(\d{2}:\d{2})/);
+    const matchNum   = m.msg.match(/Match M(\d+)/);
+    const heureJeu   = m.msg.match(/Heure\s*:\s*(\d{2}:\d{2})/);
+    const terrain    = m.msg.match(/Terrain\s*(\d+)/);
+    const adv        = m.msg.match(/Adversaires\s*:\s*(.+)/);
+    const isBye      = m.msg.includes('Exempt du 1er tour');
+
+    const key = m.paire;
+    if(!convMap[key]){
+      convMap[key] = {
+        paire:    m.paire,
+        ts:       m.ts,
+        hConv:    heureMatch ? heureMatch[1] : '?',
+        hJeu:     heureJeu   ? heureJeu[1]   : '?',
+        matchNum: matchNum   ? parseInt(matchNum[1]) : 0,
+        terrain:  terrain    ? terrain[1]    : '?',
+        adv:      adv        ? adv[1].trim() : '',
+        bye:      isBye,
+      };
+    }
+  });
+
+  const convos = Object.values(convMap);
+  // Trier par heure de convocation
+  convos.sort((a,b)=>{
+    const ta = a.hConv.replace(':','');
+    const tb = b.hConv.replace(':','');
+    return parseInt(ta) - parseInt(tb);
+  });
+
+  const nbPaires = convos.length;
+  const nbBye = convos.filter(c=>c.bye).length;
+  const heures = [...new Set(convos.map(c=>c.hConv))].sort();
+
+  let h = `<div class="stl" style="margin-bottom:12px;">📋 Récap convocations — ${nbPaires} paires</div>`;
+
+  // Stats résumé
+  h += `<div class="conv-summary">
+    <div class="conv-stat"><span>${nbPaires}</span>Paires inscrites</div>
+    <div class="conv-stat"><span>${nbBye}</span>BYE → Quart de finale</div>
+    <div class="conv-stat"><span>${nbPaires - nbBye}</span>1/8 de finale</div>
+    <div class="conv-stat"><span>${heures[0]||'?'}</span>1ère convocation</div>
+  </div>`;
+
+  h += `<div class="tw"><table class="conv-table">
+    <tr>
+      <th>⏰ Convocation</th>
+      <th>Paire</th>
+      <th>TS</th>
+      <th>Match</th>
+      <th>🕐 Heure</th>
+      <th>📍 Terrain</th>
+      <th>🆚 Adversaire</th>
+      <th>Statut</th>
+    </tr>`;
+
+  const tc2 = {TS1:'a',TS2:'a',TS3:'b',TS4:'b',TS5:'c',TS6:'c',TS7:'c',TS8:'c'};
+
+  convos.forEach(c => {
+    const tsCls = c.ts ? (tc2[c.ts]||'c') : '';
+    const tsBadge = c.ts ? `<span class="ts ${tsCls}">${c.ts}</span>` : '—';
+    const byeBadge = c.bye ? `<span class="conv-bye">BYE→QF</span>` : '';
+    const advStr = c.adv || `<span style="color:var(--tx2);font-size:10px;">—</span>`;
+    const rowCls = c.bye ? 'bye-row' : '';
+
+    h += `<tr class="${rowCls}">
+      <td><span class="conv-heure">${c.hConv}</span></td>
+      <td>
+        <div class="conv-paire">${c.paire}</div>
+        ${byeBadge}
+      </td>
+      <td>${tsBadge}</td>
+      <td><span class="conv-match">M${c.matchNum}</span></td>
+      <td style="font-family:var(--mo);font-weight:600;">${c.hJeu}</td>
+      <td class="conv-terrain">T.${c.terrain}</td>
+      <td class="conv-adv">${advStr}</td>
+      <td>
+        <button class="conv-sms-ok" onclick="renvoyerConvocation('${c.paire.replace(/'/g,"\'")}')">
+          📤 Renvoyer
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  h += '</table></div>';
+  document.getElementById('tc').innerHTML = h;
+}
+
+function renvoyerConvocation(paireNom){
+  if(!_msgData) return;
+  const msgs = _msgData.filter(m => m.paire === paireNom);
+  if(!msgs.length){ alert('Paire introuvable dans les messages.'); return; }
+
+  const sid = document.getElementById('tw-sid').value;
+  const tok = document.getElementById('tw-tok').value;
+  const num = document.getElementById('tw-num').value;
+
+  if(!sid||!tok||!num){
+    // Pas de Twilio configuré → ouvrir WhatsApp
+    msgs.forEach(m => {
+      if(m.telClean) window.open('https://wa.me/'+m.telClean+'?text='+encodeURIComponent(m.msg), '_blank');
+    });
+    showToast('💬 WhatsApp ouvert pour ' + paireNom);
+    return;
+  }
+
+  // Twilio configuré → envoyer SMS
+  if(!confirm('Renvoyer la convocation SMS à ' + paireNom + ' ?')) return;
+  fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({messages:msgs,twilioSid:sid,twilioToken:tok,twilioFrom:num})})
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.sent > 0) showToast('✅ SMS renvoyé à ' + paireNom);
+    else showToast('❌ Erreur envoi SMS');
+  });
 }
 
 </script>
