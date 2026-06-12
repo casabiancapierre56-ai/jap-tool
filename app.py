@@ -437,6 +437,158 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
 def index():
     return render_template('index.html')
 
+
+def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_classement,
+                     nom_tournoi, date_str, format_jeu, format_jeu_classement,
+                     contraintes, alertes, doublons, qf_map):
+    """Génère un tournoi simplifié pour 8 paires exactes.
+    Pas de 1/8 — QF directs numérotés M1-M4."""
+
+    # Appariements QF : TS2 vs TS5/6, TS4 vs TS7/8, TS3 vs TS7/8, TS1 vs TS5/6
+    # Selon tableau T (16 slots), les BYE sont aux positions 0,2,4,6,8,10,12,14
+    bye_slots = [0, 2, 4, 6, 8, 10, 12, 14]
+    bye_paires = [T[i]['p'] for i in bye_slots if T[i].get('p')]
+
+    # Calculer horaires QF (4 matchs en 2 vagues)
+    vagues_8 = [[1,2],[3,4],[5,6],[7,8],[9,10],[11]]
+    horaires = {}
+    h_cur_min = hm_to_min(heure_debut)
+    matchs_principal_8 = {1,2,3,4,7,8}
+    matchs_cls_8 = {5,6,9,10,11}
+
+    for vague in vagues_8:
+        for i, num in enumerate(vague):
+            piste = (i % nb_pistes) + 1
+            horaires[num] = (min_to_hm(h_cur_min), piste)
+        dur = duree_principal if vague[0] in matchs_principal_8 else duree_classement
+        nb_v = (len(vague) + nb_pistes - 1) // nb_pistes
+        h_cur_min += nb_v * dur
+
+    # Construire matchs QF M1-M4
+    # Appariements : T[0] vs T[2], T[4] vs T[6], T[8] vs T[10], T[12] vs T[14]
+    qf_pairs = [
+        (T[0]['p'], T[2]['p']),
+        (T[4]['p'], T[6]['p']),
+        (T[8]['p'], T[10]['p']),
+        (T[12]['p'], T[14]['p']),
+    ]
+
+    matchs = []
+    for i, (pa, pb) in enumerate(qf_pairs):
+        num = i + 1
+        h_m, piste = horaires[num]
+        matchs.append({'num':num,'ordre':'1/4','pA':pa,'pB':pb,'heure':h_m,'piste':piste})
+
+    # Matchs classement
+    h5, p5 = horaires[5]
+    h6, p6 = horaires[6]
+    h7, p7 = horaires[7]
+    h8, p8 = horaires[8]
+    h9, p9 = horaires[9]
+    h10,p10= horaires[10]
+    h11,p11= horaires[11]
+
+    matchs += [
+        {'num':5, 'ordre':'5 a 8','libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','heure':h5,'piste':p5},
+        {'num':6, 'ordre':'5 a 8','libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','heure':h6,'piste':p6},
+        {'num':7, 'ordre':'1/2',  'libA':'GAGNANT MATCH 1','libB':'GAGNANT MATCH 2','heure':h7,'piste':p7},
+        {'num':8, 'ordre':'1/2',  'libA':'GAGNANT MATCH 3','libB':'GAGNANT MATCH 4','heure':h8,'piste':p8},
+        {'num':9, 'ordre':'5/6',  'libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6','heure':h9,'piste':p9},
+        {'num':10,'ordre':'7/8',  'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','heure':h10,'piste':p10},
+        {'num':11,'ordre':'FINALE','libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','heure':h11,'piste':p11},
+    ]
+
+    # Construire paire_match
+    paire_match = {}
+    for i, (pa, pb) in enumerate(qf_pairs):
+        num = i + 1
+        h_m, piste = horaires[num]
+        paire_match[pa['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pb,'tour':'Quart de finale','bye':False}
+        paire_match[pb['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pa,'tour':'Quart de finale','bye':False}
+
+    # Construire messages
+    messages = []
+    for p in paires:
+        pm = paire_match.get(p['id'], {})
+        h_m    = pm.get('h','?')
+        piste  = pm.get('piste','?')
+        num_m  = pm.get('num','?')
+        adv    = pm.get('adv')
+        h_conv = sub_min(h_m, 15) if h_m != '?' else '?'
+        adv_str = f"{adv['prenJ1']} {adv['nomJ1']} / {adv['prenJ2']} {adv['nomJ2']}" if adv else ''
+
+        ts_line = f"\n⭐ {p['ts']}" if p['ts'] else ''
+        if str(p['id']) in contraintes:
+            contrainte_info = f"\n⏳ Disponible à partir de {contraintes[str(p['id'])]}h"
+        else:
+            contrainte_info = ''
+
+        # Format lisible
+        fmt_parts = format_jeu.split(':',1)
+        fmt_display = fmt_parts[1].strip() if len(fmt_parts)>1 else format_jeu
+
+        # Liste des paires
+        liste_paires_lines = []
+        for idx_p, pp in enumerate(paires):
+            ts_tag = f" ({pp['ts']})" if pp['ts'] else ""
+            liste_paires_lines.append(f"{idx_p+1}. {pp['prenJ1']} {pp['nomJ1']} / {pp['prenJ2']} {pp['nomJ2']}{ts_tag}")
+        liste_paires_str = "\n".join(liste_paires_lines)
+
+        for j in [{'pr':p['prenJ1'],'nm':p['nomJ1'],'tel':p['telJ1']},
+                  {'pr':p['prenJ2'],'nm':p['nomJ2'],'tel':p['telJ2']}]:
+            msg = (
+                f"ARENA18 – TOURNOI\n"
+                f"Votre tournoi commence ici.\n\n"
+                f"Bonjour {j['pr']},\n\n"
+                f"{nom_tournoi} 📅 {date_str}\n"
+                f"Format {fmt_display}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"Votre paire : {p['nf']}"
+                + (f"\n{p['ts']}" if p['ts'] else "")
+                + contrainte_info
+                + f"\n━━━━━━━━━━━━━━\n"
+                f"Convocation : {h_conv}h\n"
+                f"Afin d'optimiser le lancement des matchs et le bon déroulement du tournoi, les joueurs sont convoqués 15 minutes avant leur heure d'entrée en piste.\n"
+                f"Un temps d'échauffement de 5 minutes est recommandé avant le début de la rencontre.\n"
+                f"Entrée en compétition en Quart de finale.\n"
+                f"Match M{num_m} 🕗 Début prévu : {h_m}h 📍 Terrain {piste}"
+                + (f"\n🆚 Adversaires : {adv_str}" if adv_str else "")
+                + f"\n━━━━━━━━━━━━━━\n"
+                f"🎾 Les {len(paires)} paires du tournoi :\n"
+                f"{liste_paires_str}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"Toute l'équipe d'ARENA18 vous souhaite un excellent tournoi.\n"
+                f"ARENA18 PADEL CLUB — PLAY HARD. ENJOY MORE."
+            )
+
+            tel_raw = j['tel'].replace(' ','').replace('.','').replace('-','')
+            if tel_raw.startswith('+33'):
+                tel_c = tel_raw[1:]
+            elif tel_raw.startswith('0') and len(tel_raw) == 10:
+                tel_c = '33' + tel_raw[1:]
+            elif tel_raw.startswith('33') and len(tel_raw) == 11:
+                tel_c = tel_raw
+            else:
+                tel_c = tel_raw
+
+            messages.append({
+                'prenom': j['pr'], 'nom': j['nm'],
+                'tel': j['tel'], 'telClean': tel_c,
+                'paire': p['nf'], 'ts': p['ts'],
+                'msg': msg,
+            })
+
+    return jsonify({
+        'paires':   paires,
+        'tableau':  [[s['t'], s.get('p') if s['t'] != 'emp' else None] for s in T],
+        'matchs':   matchs,
+        'messages': messages,
+        'doublons': doublons,
+        'qfMap':    qf_map,
+        'alertes':  alertes,
+        'formatJeuClassement': format_jeu_classement,
+    })
+
 @app.route('/generer', methods=['POST'])
 def generer():
     data = request.get_json()
@@ -479,8 +631,16 @@ def generer():
         '7': {'nom':T[14]['p']['nc'],'poids':T[14]['p']['poids'],'ts':T[14]['p']['ts']},
     }
 
-    # CAS 8 PAIRES : reconstruire paire_match pour QF uniquement
     huit_paires = (len(paires) == 8)
+
+    # ── CAS SPECIAL 8 PAIRES : QF directs numérotés M1-M4 ──────────────
+    if huit_paires:
+        return generer_8_paires(
+            paires, T, heure_debut, nb_pistes, duree_principal, duree_classement,
+            nom_tournoi, date_str, format_jeu, format_jeu_classement,
+            contraintes, alertes, doublons, qf_map
+        )
+    # ────────────────────────────────────────────────────────────────────
 
     horaires = calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes, T)
 
