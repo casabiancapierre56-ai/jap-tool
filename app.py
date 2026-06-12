@@ -484,10 +484,16 @@ def generer():
 
     horaires = calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes, T)
 
-    m1a,m1b = T[2]['p'],T[3]['p']
-    m2a,m2b = T[4]['p'],T[5]['p']
-    m3a,m3b = T[10]['p'],T[11]['p']
-    m4a,m4b = T[12]['p'],T[13]['p']
+    # Paire vide pour les slots emp (8 paires)
+    _vide = {'id':0,'nomJ1':'','prenJ1':'','nomJ2':'','prenJ2':'',
+             'poids':0,'ts':None,'nc':'','nf':'','licJ1':'','licJ2':'','telJ1':'','telJ2':''}
+    def get_p(slot):
+        return slot.get('p', _vide) if slot['t'] != 'emp' else _vide
+
+    m1a,m1b = get_p(T[2]),get_p(T[3])
+    m2a,m2b = get_p(T[4]),get_p(T[5])
+    m3a,m3b = get_p(T[10]),get_p(T[11])
+    m4a,m4b = get_p(T[12]),get_p(T[13])
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
     matchs = [
