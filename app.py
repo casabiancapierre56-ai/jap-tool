@@ -137,21 +137,47 @@ def parse_csv(text):
 
 # ── Construction tableau FFT ─────────────
 def build_tableau(paires, contraintes=None):
-    ts1, ts2   = paires[0], paires[1]
-    ts34       = shuffle([paires[2], paires[3]])
+    ts1, ts2 = paires[0], paires[1]
+    ts34     = shuffle([paires[2], paires[3]])
+
     # S'assurer qu'on a assez de paires pour les TS5-8
-    ts58_raw = paires[4:8]
+    ts58_raw = list(paires[4:8])
     while len(ts58_raw) < 4:
         ts58_raw.append({'id':0,'nomJ1':'?','prenJ1':'?','nomJ2':'?','prenJ2':'?',
                          'poids':0,'ts':None,'nc':'?','nf':'?','licJ1':'','licJ2':'',
                          'telJ1':'','telJ2':''})
-    ts58       = shuffle(ts58_raw)
-    autres     = shuffle(paires[8:])
+    ts58 = shuffle(ts58_raw)
 
     if contraintes:
         def get_contrainte(p):
             return hm_to_min(contraintes.get(str(p['id']), '00:00'))
-        ts58  = sorted(ts58,  key=get_contrainte)
+        ts58 = sorted(ts58, key=get_contrainte)
+
+    # CAS SPECIAL : 8 paires exactement — tout le monde BYE direct en QF
+    if len(paires) == 8:
+        T = [
+            {'t':'bye','p':ts2},
+            {'t':'emp'},
+            {'t':'bye','p':ts58[0]},
+            {'t':'emp'},
+            {'t':'bye','p':ts58[1]},
+            {'t':'emp'},
+            {'t':'bye','p':ts34[0]},
+            {'t':'emp'},
+            {'t':'bye','p':ts34[1]},
+            {'t':'emp'},
+            {'t':'bye','p':ts58[2]},
+            {'t':'emp'},
+            {'t':'bye','p':ts58[3]},
+            {'t':'emp'},
+            {'t':'bye','p':ts1},
+            {'t':'emp'},
+        ]
+        return T, ts34, ts58
+
+    # CAS NORMAL : >= 9 paires
+    autres = shuffle(paires[8:])
+    if contraintes:
         autres = sorted(autres, key=get_contrainte)
 
     # Compléter autres avec des paires vides si pas assez
@@ -453,6 +479,9 @@ def generer():
         '7': {'nom':T[14]['p']['nc'],'poids':T[14]['p']['poids'],'ts':T[14]['p']['ts']},
     }
 
+    # CAS 8 PAIRES : reconstruire paire_match pour QF uniquement
+    huit_paires = (len(paires) == 8)
+
     horaires = calc_horaires(heure_debut, nb_pistes, duree_principal, duree_classement, contraintes, T)
 
     m1a,m1b = T[2]['p'],T[3]['p']
@@ -490,15 +519,27 @@ def generer():
         m['piste'] = piste
 
     paire_match = {}
-    for num, (sa,sb) in {1:(2,3),2:(4,5),3:(10,11),4:(12,13)}.items():
-        h_m, piste = horaires[num]
-        pa, pb = T[sa]['p'], T[sb]['p']
-        paire_match[pa['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pb,'tour':'1/8 de finale'}
-        paire_match[pb['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pa,'tour':'1/8 de finale'}
+    if not huit_paires:
+        for num, (sa,sb) in {1:(2,3),2:(4,5),3:(10,11),4:(12,13)}.items():
+            h_m, piste = horaires[num]
+            pa, pb = T[sa]['p'], T[sb]['p']
+            if pa['id'] > 0:
+                paire_match[pa['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pb,'tour':'1/8 de finale'}
+            if pb['id'] > 0:
+                paire_match[pb['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pa,'tour':'1/8 de finale'}
+    # BYE → QF pour tous les slots bye
     for slot_idx, qf_num in [(0,7),(6,8),(8,9),(14,10)]:
         p = T[slot_idx]['p']
-        h_m, piste = horaires[qf_num]
-        paire_match[p['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
+        if p['id'] > 0:
+            h_m, piste = horaires[qf_num]
+            paire_match[p['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
+    # CAS 8 PAIRES : les TS5-8 sont aussi BYE
+    if huit_paires:
+        for slot_idx, qf_num in [(2,7),(4,8),(10,9),(12,10)]:
+            p = T[slot_idx]['p']
+            if p['id'] > 0:
+                h_m, piste = horaires[qf_num]
+                paire_match[p['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
 
     messages = []
     for p in paires:
