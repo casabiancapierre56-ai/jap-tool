@@ -616,7 +616,7 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         'matchs':   matchs,
         'messages': messages,
         'doublons': doublons,
-        'qfMap':    qf_map,
+        'qfMap':    {'0':None,'3':None,'4':None,'7':None},  # Vide pour 8 paires
         'alertes':  alertes,
         'formatJeuClassement': format_jeu_classement,
         'nbMatchs': len(matchs),
