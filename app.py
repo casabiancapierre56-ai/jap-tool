@@ -444,10 +444,14 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
     """Génère un tournoi simplifié pour 8 paires exactes.
     Pas de 1/8 — QF directs numérotés M1-M4."""
 
-    # Appariements QF : TS2 vs TS5/6, TS4 vs TS7/8, TS3 vs TS7/8, TS1 vs TS5/6
-    # Selon tableau T (16 slots), les BYE sont aux positions 0,2,4,6,8,10,12,14
-    bye_slots = [0, 2, 4, 6, 8, 10, 12, 14]
-    bye_paires = [T[i]['p'] for i in bye_slots if T[i].get('p')]
+    # Appariements QF selon tableau T
+    # T[0] vs T[2], T[4] vs T[6], T[8] vs T[10], T[12] vs T[14]
+    qf_pairs = [
+        (T[0]['p'], T[2]['p']),
+        (T[4]['p'], T[6]['p']),
+        (T[8]['p'], T[10]['p']),
+        (T[12]['p'], T[14]['p']),
+    ]
 
     # Trier les QF en tenant compte des contraintes
     if contraintes:
@@ -494,14 +498,6 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         h_cur_min += nb_v * dur
 
     # Construire matchs QF M1-M4
-    # Appariements : T[0] vs T[2], T[4] vs T[6], T[8] vs T[10], T[12] vs T[14]
-    qf_pairs = [
-        (T[0]['p'], T[2]['p']),
-        (T[4]['p'], T[6]['p']),
-        (T[8]['p'], T[10]['p']),
-        (T[12]['p'], T[14]['p']),
-    ]
-
     matchs = []
     for i, (pa, pb) in enumerate(qf_pairs):
         num = i + 1
