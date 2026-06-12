@@ -591,7 +591,8 @@ async function dlPdf(type){
       ?{tableau:genData.tableau,qfMap:genData.qfMap,
         nomTournoi:document.getElementById('nt').value,
         dateStr:dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR'):'',
-        formatJeu:document.getElementById('fg').value}
+        formatJeu:document.getElementById('fg').value,
+        format8paires:genData.format8paires||false}
       :{matchs:genData.matchs,
         nomTournoi:document.getElementById('nt').value,
         dateStr,
