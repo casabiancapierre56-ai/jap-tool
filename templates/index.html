@@ -706,8 +706,12 @@ function slH(s){
 function renH(d){
   const dp=document.getElementById('dp').value;
   const dc=document.getElementById('dc').value;
-  const secs={1:'1/8 de finale',5:'Classement 9-12',7:'Quarts de finale',11:'Classement (suite)',13:'Classement 5-8',15:'Demi-finales',17:'Classements finaux',20:'Finale'};
-  const clsMatchs=new Set([5,6,11,12,13,14,17,18,19]);
+  // Sections pour 12+ paires (20 matchs)
+  const secsNormal={1:'1/8 de finale',5:'Classement 9-12',7:'Quarts de finale',11:'Classement (suite)',13:'Classement 5-8',15:'Demi-finales',17:'Classements finaux',20:'Finale'};
+  // Sections pour 8 paires (11 matchs)
+  const secs8={1:'Quarts de finale',5:'Classement 5-8',7:'Demi-finales',9:'Petite finale & Classement',11:'Finale'};
+  const secs = (d.format8paires) ? secs8 : secsNormal;
+  const clsMatchs = d.format8paires ? new Set([5,6,9,10]) : new Set([5,6,11,12,13,14,17,18,19]);
   let h=`<div class="stl" style="margin-bottom:11px;">Planning TMC · ${document.getElementById('np').value} piste(s) · Principal ${dp}min · Classement ${dc}min</div>`;
   d.matchs.forEach(m=>{
     if(secs[m.num])h+=`<div style="font-size:10px;font-weight:700;color:var(--tx2);font-family:var(--mo);padding:7px 0 3px;text-transform:uppercase;letter-spacing:.08em;">${secs[m.num]}</div>`;
