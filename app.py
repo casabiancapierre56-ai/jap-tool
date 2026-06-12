@@ -139,7 +139,13 @@ def parse_csv(text):
 def build_tableau(paires, contraintes=None):
     ts1, ts2   = paires[0], paires[1]
     ts34       = shuffle([paires[2], paires[3]])
-    ts58       = shuffle([paires[4], paires[5], paires[6], paires[7]])
+    # S'assurer qu'on a assez de paires pour les TS5-8
+    ts58_raw = paires[4:8]
+    while len(ts58_raw) < 4:
+        ts58_raw.append({'id':0,'nomJ1':'?','prenJ1':'?','nomJ2':'?','prenJ2':'?',
+                         'poids':0,'ts':None,'nc':'?','nf':'?','licJ1':'','licJ2':'',
+                         'telJ1':'','telJ2':''})
+    ts58       = shuffle(ts58_raw)
     autres     = shuffle(paires[8:])
 
     if contraintes:
@@ -147,6 +153,12 @@ def build_tableau(paires, contraintes=None):
             return hm_to_min(contraintes.get(str(p['id']), '00:00'))
         ts58  = sorted(ts58,  key=get_contrainte)
         autres = sorted(autres, key=get_contrainte)
+
+    # Compléter autres avec des paires vides si pas assez
+    while len(autres) < 4:
+        autres.append({'id':0,'nomJ1':'?','prenJ1':'?','nomJ2':'?','prenJ2':'?',
+                       'poids':0,'ts':None,'nc':'?','nf':'?','licJ1':'','licJ2':'',
+                       'telJ1':'','telJ2':''})
 
     T = [
         {'t':'bye','p':ts2},
