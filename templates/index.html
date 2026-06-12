@@ -597,7 +597,8 @@ async function dlPdf(type){
         dateStr,
         sponsor:document.getElementById('sp').value,
         formatJeu:document.getElementById('fg').value,
-        formatJeuClassement:document.getElementById('fg-cls').value};
+        formatJeuClassement:document.getElementById('fg-cls').value,
+        format8paires:genData.format8paires||false};
     const r=await fetch(`/pdf/${type}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||'Erreur '+r.status);}
     const blob=await r.blob();
