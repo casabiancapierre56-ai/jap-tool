@@ -496,28 +496,47 @@ def generer():
     m4a,m4b = get_p(T[12]),get_p(T[13])
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
-    matchs = [
-        {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b},
-        {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b},
-        {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b},
-        {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b},
-        {'num':5,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2'},
-        {'num':6,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4'},
-        {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0},
-        {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3},
-        {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4},
-        {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7},
-        {'num':11, 'ordre':'11 a 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6'},
-        {'num':12, 'ordre':'9 a 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6'},
-        {'num':13, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8'},
-        {'num':14, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10'},
-        {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8'},
-        {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10'},
-        {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14'},
-        {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14'},
-        {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16'},
-        {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
-    ]
+    if huit_paires:
+        # 8 paires : pas de 1/8, QF directs entre BYE vs BYE
+        qf_pairs = [(T[0]['p'],T[2]['p']),(T[4]['p'],T[6]['p']),
+                    (T[8]['p'],T[10]['p']),(T[12]['p'],T[14]['p'])]
+        matchs = [
+            {'num':7,  'ordre':'1/4', 'pA':qf_pairs[0][0],'pB':qf_pairs[0][1]},
+            {'num':8,  'ordre':'1/4', 'pA':qf_pairs[1][0],'pB':qf_pairs[1][1]},
+            {'num':9,  'ordre':'1/4', 'pA':qf_pairs[2][0],'pB':qf_pairs[2][1]},
+            {'num':10, 'ordre':'1/4', 'pA':qf_pairs[3][0],'pB':qf_pairs[3][1]},
+            {'num':13, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8'},
+            {'num':14, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10'},
+            {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8'},
+            {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10'},
+            {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14'},
+            {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14'},
+            {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16'},
+            {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
+        ]
+    else:
+        matchs = [
+            {'num':1,  'ordre':'1/8',    'pA':m1a,'pB':m1b},
+            {'num':2,  'ordre':'1/8',    'pA':m2a,'pB':m2b},
+            {'num':3,  'ordre':'1/8',    'pA':m3a,'pB':m3b},
+            {'num':4,  'ordre':'1/8',    'pA':m4a,'pB':m4b},
+            {'num':5,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2'},
+            {'num':6,  'ordre':'9 a 12', 'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4'},
+            {'num':7,  'ordre':'1/4',    'libA':'GAGNANT MATCH 1','pB':qf0},
+            {'num':8,  'ordre':'1/4',    'libA':'GAGNANT MATCH 2','pB':qf3},
+            {'num':9,  'ordre':'1/4',    'libA':'GAGNANT MATCH 3','pB':qf4},
+            {'num':10, 'ordre':'1/4',    'libA':'GAGNANT MATCH 4','pB':qf7},
+            {'num':11, 'ordre':'11 a 12','libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6'},
+            {'num':12, 'ordre':'9 a 10', 'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6'},
+            {'num':13, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8'},
+            {'num':14, 'ordre':'5 a 8',  'libA':'PERDANT MATCH 9','libB':'PERDANT MATCH 10'},
+            {'num':15, 'ordre':'1/2',    'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8'},
+            {'num':16, 'ordre':'1/2',    'libA':'GAGNANT MATCH 9','libB':'GAGNANT MATCH 10'},
+            {'num':17, 'ordre':'7/8',    'libA':'PERDANT MATCH 13','libB':'PERDANT MATCH 14'},
+            {'num':18, 'ordre':'5/6',    'libA':'GAGNANT MATCH 13','libB':'GAGNANT MATCH 14'},
+            {'num':19, 'ordre':'3/4',    'libA':'PERDANT MATCH 15','libB':'PERDANT MATCH 16'},
+            {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
+        ]
 
     for m in matchs:
         h_m, piste = horaires.get(m['num'], ('?', '?'))
@@ -539,13 +558,16 @@ def generer():
         if p['id'] > 0:
             h_m, piste = horaires[qf_num]
             paire_match[p['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
-    # CAS 8 PAIRES : les TS5-8 sont aussi BYE
+    # CAS 8 PAIRES : construire paire_match depuis les QF directs
     if huit_paires:
-        for slot_idx, qf_num in [(2,7),(4,8),(10,9),(12,10)]:
-            p = T[slot_idx]['p']
-            if p['id'] > 0:
-                h_m, piste = horaires[qf_num]
-                paire_match[p['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
+        qf_pairs_pm = [(T[0]['p'],T[2]['p'],7),(T[4]['p'],T[6]['p'],8),
+                       (T[8]['p'],T[10]['p'],9),(T[12]['p'],T[14]['p'],10)]
+        for pa, pb, qf_num in qf_pairs_pm:
+            h_m, piste = horaires.get(qf_num, ('?','?'))
+            if pa['id'] > 0:
+                paire_match[pa['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':pb,'tour':'Quart de finale','bye':False}
+            if pb['id'] > 0:
+                paire_match[pb['id']] = {'num':qf_num,'h':h_m,'piste':piste,'adv':pa,'tour':'Quart de finale','bye':False}
 
     messages = []
     for p in paires:
