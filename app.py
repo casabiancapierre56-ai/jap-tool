@@ -449,14 +449,43 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
     bye_slots = [0, 2, 4, 6, 8, 10, 12, 14]
     bye_paires = [T[i]['p'] for i in bye_slots if T[i].get('p')]
 
-    # Calculer horaires QF (4 matchs en 2 vagues)
+    # Trier les QF en tenant compte des contraintes
+    if contraintes:
+        def sort_key_contrainte(pair):
+            pa, pb = pair
+            c_a = hm_to_min(contraintes.get(str(pa['id']), '00:00'))
+            c_b = hm_to_min(contraintes.get(str(pb['id']), '00:00'))
+            return max(c_a, c_b)
+        qf_pairs = sorted(qf_pairs, key=sort_key_contrainte)
+
+    # Calculer horaires QF avec respect des contraintes
     vagues_8 = [[1,2],[3,4],[5,6],[7,8],[9,10],[11]]
     horaires = {}
     h_cur_min = hm_to_min(heure_debut)
     matchs_principal_8 = {1,2,3,4,7,8}
-    matchs_cls_8 = {5,6,9,10,11}
 
-    for vague in vagues_8:
+    # Vague 1 : M1 et M2 (QF), vague 2 : M3 et M4 (QF)
+    # Appliquer contraintes sur les vagues QF
+    qf_vagues = [[1,2],[3,4]]
+    qf_vague_pairs = [qf_pairs[:2], qf_pairs[2:]]
+
+    h_qf = h_cur_min
+    for vi, vague_nums in enumerate(qf_vagues):
+        # Vérifier contraintes pour les paires de cette vague
+        h_vague = h_qf if vi == 0 else h_cur_min
+        for pa, pb in qf_vague_pairs[vi]:
+            for pid in [str(pa['id']), str(pb['id'])]:
+                if pid in contraintes:
+                    c_min = hm_to_min(contraintes[pid])
+                    if c_min > h_vague:
+                        h_vague = c_min
+        for i, num in enumerate(vague_nums):
+            piste = (i % nb_pistes) + 1
+            horaires[num] = (min_to_hm(h_vague), piste)
+        h_cur_min = h_vague + ((len(vague_nums) + nb_pistes - 1) // nb_pistes) * duree_principal
+
+    # Matchs classement
+    for vague in [[5,6],[7,8],[9,10],[11]]:
         for i, num in enumerate(vague):
             piste = (i % nb_pistes) + 1
             horaires[num] = (min_to_hm(h_cur_min), piste)
@@ -587,6 +616,8 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         'qfMap':    qf_map,
         'alertes':  alertes,
         'formatJeuClassement': format_jeu_classement,
+        'nbMatchs': len(matchs),
+        'format8paires': True,
     })
 
 @app.route('/generer', methods=['POST'])
