@@ -572,7 +572,8 @@ async function generer(){
     document.getElementById('b-ajout').disabled=false;
     document.getElementById('b-accueil').disabled=false;
     document.getElementById('tw-box').style.display='block';
-    document.getElementById('sb').textContent=`${data.paires.length} paires · TMC 20 matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
+    const nbM = data.nbMatchs || 20;
+    document.getElementById('sb').textContent=`${data.paires.length} paires · TMC ${nbM} matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     mettreAJourHeaderTitre();
     if(data.alertes?.length) renAlertes(data.alertes);
   } catch(e){ alert('Erreur : '+e.message); }
