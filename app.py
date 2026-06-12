@@ -283,30 +283,39 @@ def write_slot(c, x, y, nom, poids, ts, is_bye, max_x=128):
         c.drawRightString(max_x-2, y+2.2, str(poids))
         c.setFillColorRGB(0, 0, 0)
 
-def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
+def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu, format8=False):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(W_PDF, H_PDF))
     c.setFont("Helvetica-Bold", 7.5)
     c.setFillColorRGB(0.3, 0.3, 0.3)
     c.drawCentredString(W_PDF/2, H_PDF-79, f"{nom_tournoi}  ·  {date_str}  ·  {format_jeu}")
     c.setFillColorRGB(0, 0, 0)
-    for i, s in enumerate(T):
-        y = Y_1T[i]
-        if s['t'] == 'emp': continue
-        if s['t'] == 'bye':
+    if format8:
+        # 8 paires : écrire les équipes directement dans les 8 slots QF (colonne droite)
+        # Les slots bye aux positions 0,2,4,6,8,10,12,14 → QF positions 0-7
+        bye_paires = [(i, s) for i, s in enumerate(T) if s['t'] == 'bye']
+        for qi, (slot_idx, s) in enumerate(bye_paires):
             p = s.get('p')
             if p and p.get('nc') and p['nc'] != '?':
-                # BYE avec équipe connue — afficher le nom
-                write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
+                y = Y_QF[qi]
+                write_slot(c, 132, y, p['nc'], p['poids'], p['ts'], False, max_x=244)
+    else:
+        for i, s in enumerate(T):
+            y = Y_1T[i]
+            if s['t'] == 'emp': continue
+            if s['t'] == 'bye':
+                p = s.get('p')
+                if p and p.get('nc') and p['nc'] != '?':
+                    write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
+                else:
+                    write_slot(c, 14, y, '', None, None, True, max_x=129)
             else:
-                write_slot(c, 14, y, '', None, None, True, max_x=129)
-        else:
-            p = s['p']
-            write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
-    for qi, qd in qf_map.items():
-        if not qd: continue
-        y = Y_QF[int(qi)]
-        write_slot(c, 132, y, qd['nom'], qd['poids'], qd['ts'], False, max_x=244)
+                p = s['p']
+                write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
+        for qi, qd in qf_map.items():
+            if not qd: continue
+            y = Y_QF[int(qi)]
+            write_slot(c, 132, y, qd['nom'], qd['poids'], qd['ts'], False, max_x=244)
     c.setFont("Helvetica-Oblique", 5.8)
     c.setFillColorRGB(0.4, 0.4, 0.4)
     c.drawString(14, 112, "TS1,TS2,TS3,TS4 — BYE → QF  |  TS1 en bas / TS2 en haut (FFT p.40)")
@@ -1358,7 +1367,8 @@ def pdf_tableau():
     pdf_bytes = generer_pdf_tableau(T, qf_map,
         data.get('nomTournoi','P250'),
         data.get('dateStr',''),
-        data.get('formatJeu','9 jeux NO-AD'))
+        data.get('formatJeu','9 jeux NO-AD'),
+        format8=data.get('format8paires', False))
     return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
         as_attachment=True, download_name='tableau_p250.pdf')
 
