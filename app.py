@@ -479,10 +479,10 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         qf_pairs = sorted(qf_pairs, key=sort_key_contrainte)
 
     # Calculer horaires QF avec respect des contraintes
-    vagues_8 = [[1,2],[3,4],[5,6],[7,8],[9,10],[11]]
+    vagues_8 = [[1,2],[3,4],[5,6],[7,8],[9,10],[11,12]]
     horaires = {}
     h_cur_min = hm_to_min(heure_debut)
-    matchs_principal_8 = {1,2,3,4,7,8}
+    matchs_principal_8 = {1,2,3,4,7,8,12}
 
     # Vague 1 : M1 et M2 (QF), vague 2 : M3 et M4 (QF)
     # Appliquer contraintes sur les vagues QF
@@ -525,18 +525,21 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
     h6, p6 = horaires[6]
     h7, p7 = horaires[7]
     h8, p8 = horaires[8]
-    h9, p9 = horaires[9]
-    h10,p10= horaires[10]
-    h11,p11= horaires[11]
+
+    h9, p9   = horaires[9]
+    h10, p10 = horaires[10]
+    h11, p11 = horaires[11]
+    h12, p12 = horaires[12]
 
     matchs += [
-        {'num':5, 'ordre':'5 a 8',   'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','heure':h5,'piste':p5},
-        {'num':6, 'ordre':'5 a 8',   'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','heure':h6,'piste':p6},
-        {'num':7, 'ordre':'1/2',     'libA':'GAGNANT MATCH 1','libB':'GAGNANT MATCH 2','heure':h7,'piste':p7},
-        {'num':8, 'ordre':'1/2',     'libA':'GAGNANT MATCH 3','libB':'GAGNANT MATCH 4','heure':h8,'piste':p8},
-        {'num':9, 'ordre':'3/4',     'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8','heure':h9,'piste':p9},
-        {'num':10,'ordre':'5/6',     'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','heure':h10,'piste':p10},
-        {'num':11,'ordre':'FINALE',  'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','heure':h11,'piste':p11},
+        {'num':5,  'ordre':'5 a 8',  'libA':'PERDANT MATCH 1','libB':'PERDANT MATCH 2','heure':h5,'piste':p5},
+        {'num':6,  'ordre':'5 a 8',  'libA':'PERDANT MATCH 3','libB':'PERDANT MATCH 4','heure':h6,'piste':p6},
+        {'num':7,  'ordre':'1/2',    'libA':'GAGNANT MATCH 1','libB':'GAGNANT MATCH 2','heure':h7,'piste':p7},
+        {'num':8,  'ordre':'1/2',    'libA':'GAGNANT MATCH 3','libB':'GAGNANT MATCH 4','heure':h8,'piste':p8},
+        {'num':9,  'ordre':'7/8',    'libA':'PERDANT MATCH 5','libB':'PERDANT MATCH 6','heure':h9,'piste':p9},
+        {'num':10, 'ordre':'5/6',    'libA':'GAGNANT MATCH 5','libB':'GAGNANT MATCH 6','heure':h10,'piste':p10},
+        {'num':11, 'ordre':'3/4',    'libA':'PERDANT MATCH 7','libB':'PERDANT MATCH 8','heure':h11,'piste':p11},
+        {'num':12, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 7','libB':'GAGNANT MATCH 8','heure':h12,'piste':p12},
     ]
 
     # Construire paire_match
