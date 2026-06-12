@@ -294,7 +294,12 @@ def generer_pdf_tableau(T, qf_map, nom_tournoi, date_str, format_jeu):
         y = Y_1T[i]
         if s['t'] == 'emp': continue
         if s['t'] == 'bye':
-            write_slot(c, 14, y, '', None, None, True, max_x=129)
+            p = s.get('p')
+            if p and p.get('nc') and p['nc'] != '?':
+                # BYE avec équipe connue — afficher le nom
+                write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
+            else:
+                write_slot(c, 14, y, '', None, None, True, max_x=129)
         else:
             p = s['p']
             write_slot(c, 14, y, p['nc'], p['poids'], p['ts'], False, max_x=129)
@@ -331,7 +336,7 @@ MATCH_Y_FDR = {
 X_EQ_START = 62
 X_EQ_END   = 420
 
-def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
+def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu, data=None):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(FW, FH))
     c.setFont("Helvetica-Bold", 12)
@@ -342,9 +347,11 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
     c.drawCentredString(527, 714, "DECATHLON")
     c.drawCentredString(527, 685, "CUPRA")
     max_w = X_EQ_END - X_EQ_START - 8
+    format8 = (data or {}).get('format8paires', False)
     for m in matchs:
         num = m['num']
-        y = MATCH_Y_FDR.get(num)
+        template_num = (num + 6) if (format8 and num <= 4) else num
+        y = MATCH_Y_FDR.get(template_num)
         if not y:
             continue
         fs = 8.5
@@ -359,7 +366,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu):
                     fs -= 0.2
                 c.setFillColorRGB(0, 0, 0)
                 c.drawString(X_EQ_START, y, texte)
-        elif num in (7, 8, 9, 10):
+        elif num in (7, 8, 9, 10) and not format8:
             if m.get('pB'):
                 pb = m['pB']
                 ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
@@ -1363,7 +1370,8 @@ def pdf_feuille():
             return jsonify({'error': 'Donnees JSON manquantes'}), 400
         pdf_bytes = generer_pdf_feuille(
             data['matchs'], data.get('nomTournoi',''),
-            data.get('dateStr',''), data.get('sponsor',''), data.get('formatJeu',''))
+            data.get('dateStr',''), data.get('sponsor',''), data.get('formatJeu',''),
+            data)
         return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
             as_attachment=True, download_name='feuille_route.pdf')
     except Exception as e:
