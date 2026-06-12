@@ -505,7 +505,7 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         h_cur_min = h_vague + ((len(vague_nums) + nb_pistes - 1) // nb_pistes) * duree_principal
 
     # Matchs classement
-    for vague in [[5,6],[7,8],[9,10],[11]]:
+    for vague in [[5,6],[7,8],[9,10],[11,12]]:
         for i, num in enumerate(vague):
             piste = (i % nb_pistes) + 1
             horaires[num] = (min_to_hm(h_cur_min), piste)
