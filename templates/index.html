@@ -629,8 +629,37 @@ async function envoyerSMS(){
     const el=document.getElementById('sms-res');
     el.style.display='block';
     if(data.error){el.innerHTML=`<span style="color:var(--am)">❌ ${data.error}</span>`;return;}
-    el.innerHTML=`<span style="color:var(--gr)">✅ ${data.sent}/${data.total} SMS envoyés</span><br>`
-      +data.results.map(r=>`<span style="color:${r.status==='sent'?'var(--gr)':r.status==='skipped'?'var(--am)':'var(--or)'}">${r.status==='sent'?'✓':'✗'} ${r.tel}</span>`).join('<br>');
+    // Trouver les noms des joueurs en échec
+    const echecs = data.results.filter(r=>r.status!=='sent');
+    const envoyes = data.results.filter(r=>r.status==='sent');
+
+    let resHtml = `<div style="margin-bottom:6px;">`;
+    resHtml += `<span style="color:var(--gr);font-weight:700;">✅ ${data.sent}/${data.total} SMS envoyés</span>`;
+    if(echecs.length){
+      resHtml += `<span style="color:#e74c3c;font-weight:700;margin-left:10px;">❌ ${echecs.length} échec(s)</span>`;
+    }
+    resHtml += `</div>`;
+
+    if(echecs.length){
+      resHtml += `<div style="background:#2a0a0a;border:1px solid #8a2020;border-radius:6px;padding:8px;margin-bottom:6px;">`;
+      resHtml += `<div style="font-size:10px;font-weight:700;color:#ff8080;margin-bottom:5px;font-family:var(--mo);">⚠️ N'ONT PAS REÇU LE SMS :</div>`;
+      echecs.forEach(r => {
+        // Trouver le nom du joueur via _msgData
+        const joueur = _msgData.find(m=>m.telClean===r.tel||m.tel===r.tel);
+        const nom = joueur ? `${joueur.prenom} ${joueur.nom}` : r.tel;
+        resHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid #3a1010;">`;
+        resHtml += `<span style="color:#ff8080;font-family:var(--mo);font-size:11px;">❌ ${nom}</span>`;
+        resHtml += `<span style="color:#888;font-family:var(--mo);font-size:10px;">${r.tel} — ${r.reason||r.status}</span>`;
+        resHtml += `</div>`;
+      });
+      resHtml += `</div>`;
+    }
+
+    resHtml += `<details style="margin-top:4px;"><summary style="font-size:10px;color:var(--tx2);cursor:pointer;font-family:var(--mo);">Voir tous les envois (${data.total})</summary>`;
+    resHtml += data.results.map(r=>`<span style="display:block;font-size:10px;font-family:var(--mo);color:${r.status==='sent'?'var(--gr)':'#e74c3c'};">${r.status==='sent'?'✓':'✗'} ${r.tel}</span>`).join('');
+    resHtml += `</details>`;
+
+    el.innerHTML = resHtml;
     await enregistrerHistoriqueSMS(data.results, document.getElementById('nt').value);
   } catch(e){ alert('Erreur SMS : '+e.message); }
   finally { btn.disabled=false; btn.textContent='📤 Envoyer tous les SMS'; }
