@@ -268,7 +268,8 @@ tr:hover td{background:var(--dk3);}
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
-    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsApp()" disabled style="border-color:#25D366;color:#25D366;">💬 Envoyer tous les WhatsApp</button>
+    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsAppAuto()" disabled style="border-color:#25D366;color:#25D366;background:#0a1f0a;">📲 Envoyer tous les WhatsApp</button>
+    <div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;text-align:center;">Envoi automatique via Arena18 (+33671327427)</div>
     <div id="wa-box" style="display:none;margin-top:6px;">
       <!-- WhatsApp Business API — à venir -->
     </div>
@@ -2129,6 +2130,84 @@ function mettreAJourHeaderTitre(){
   const dt  = document.getElementById('dt').value;
   const dateAff = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
   el.textContent = nom ? (nom + (dateAff ? '  ·  ' + dateAff : '')) : 'Tournoi Padel FFT — Arena18';
+}
+
+
+// ── WHATSAPP AUTO (API Twilio) ──
+async function envoyerTousWhatsAppAuto(){
+  if(!genData?.messages){ alert('Génère le tableau d\'abord !'); return; }
+
+  const sid = document.getElementById('tw-sid').value;
+  const tok = document.getElementById('tw-tok').value;
+  if(!sid || !tok){ alert('Remplis les champs Twilio SID et Token !'); return; }
+
+  const nbJoueurs = genData.messages.filter(m=>m.telClean).length;
+  if(!confirm(`📲 Envoyer les convocations WhatsApp\n\n${nbJoueurs} joueurs seront contactés automatiquement depuis le numéro Arena18 (+33671327427).\n\nChaque joueur recevra :\n1. Message de convocation personnalisé\n2. Liste complète des paires du tournoi\n\nConfirmer l'envoi ?`)) return;
+
+  const btn = document.getElementById('b-wa');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Envoi en cours...';
+
+  // Construire liste des paires
+  const listePaires = genData.paires.map((p,i)=>{
+    const ts = p.ts ? ` (${p.ts})` : '';
+    return `${i+1}. ${p.prenJ1} ${p.nomJ1} / ${p.prenJ2} ${p.nomJ2}${ts}`;
+  }).join('\n');
+
+  // Enrichir messages avec infos match
+  const messages = genData.messages.map(m=>{
+    // Trouver le match de ce joueur
+    const pm = genData.paires.find(p=>
+      (p.prenJ1===m.prenom && p.nomJ1===m.nom) ||
+      (p.prenJ2===m.prenom && p.nomJ2===m.nom)
+    );
+    // Extraire hconv, hmatch, terrain depuis le message texte
+    const hconv_m = m.msg.match(/Convocation\s*:\s*(\d{2}:\d{2})h/);
+    const hmatch_m = m.msg.match(/Début prévu\s*:\s*(\d{2}:\d{2})h/);
+    const terrain_m = m.msg.match(/Terrain\s+(\d+)/);
+    const match_m = m.msg.match(/Match\s+M(\d+)/);
+    const adv_m = m.msg.match(/Adversaires\s*:\s*(.+)/);
+    return {
+      ...m,
+      hconv:   hconv_m  ? hconv_m[1]  : '?',
+      hmatch:  hmatch_m ? hmatch_m[1] : '?',
+      terrain: terrain_m ? terrain_m[1] : '?',
+      numMatch: match_m ? match_m[1] : '?',
+      adversaire: adv_m ? adv_m[1].trim() : '',
+    };
+  });
+
+  const dt = document.getElementById('dt').value;
+  const dateStr = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+
+  try {
+    const r = await fetch('/whatsapp/envoyer', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages,
+        sid, token: tok,
+        nomTournoi: document.getElementById('nt').value,
+        dateStr,
+        listePaires,
+        nbPaires: genData.paires.length,
+        templateSid: 'HX6036f3a95c7559f4b45498c4e0178fa6',
+      })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Erreur serveur');
+
+    // Afficher résultats
+    const echecs = data.results.filter(r=>r.status!=='sent');
+    let msg = `✅ ${data.sent}/${data.total} WhatsApp envoyés`;
+    if(echecs.length) msg += `\n❌ ${echecs.length} échec(s) : ${echecs.map(e=>e.tel).join(', ')}`;
+    alert(msg);
+    showToast(`✅ ${data.sent}/${data.total} WhatsApp envoyés`);
+
+  } catch(e){
+    alert('Erreur envoi WhatsApp : ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = orig;
 }
 
 </script>
