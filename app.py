@@ -5,6 +5,7 @@ Arena18 — jap.myconvi.fr
 """
 from flask import Flask, request, jsonify, render_template, send_file
 import re
+import time
 import io, json, base64, random, os, sqlite3
 from datetime import datetime
 from pypdf import PdfReader, PdfWriter
@@ -1356,6 +1357,77 @@ def pdf_accueil():
         nom_fichier = f"accueil_{nom_tournoi[:20].replace(' ','_')}.pdf"
         return send_file(io.BytesIO(buf.read()), mimetype='application/pdf',
             as_attachment=True, download_name=nom_fichier)
+
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
+
+
+@app.route('/whatsapp/envoyer', methods=['POST'])
+def whatsapp_envoyer():
+    """Envoie les convocations WhatsApp via Twilio API."""
+    try:
+        data = request.get_json()
+        messages  = data.get('messages', [])
+        sid       = data.get('sid', '')
+        token     = data.get('token', '')
+        template_sid = data.get('templateSid', 'HX6036f3a95c7559f4b45498c4e0178fa6')
+        from_num  = 'whatsapp:+33671327427'
+        nom_tournoi = data.get('nomTournoi', '')
+
+        if not sid or not token:
+            return jsonify({'error': 'SID et Token Twilio requis'}), 400
+
+        from twilio.rest import Client
+        client = Client(sid, token)
+
+        results = []
+        sent = 0
+
+        for m in messages:
+            tel = m.get('telClean', '')
+            if not tel:
+                results.append({'tel': m.get('tel','?'), 'status': 'skipped', 'reason': 'Pas de numéro'})
+                continue
+
+            to_num = f'whatsapp:+{tel}'
+
+            try:
+                # Message 1 : template de convocation
+                msg = client.messages.create(
+                    from_=from_num,
+                    to=to_num,
+                    content_sid=template_sid,
+                    content_variables=json.dumps({
+                        '1': m.get('prenom', ''),
+                        '2': nom_tournoi,
+                        '3': data.get('dateStr', ''),
+                        '4': m.get('paire', ''),
+                        '5': m.get('hconv', '?'),
+                        '6': f"M{m.get('numMatch', '?')}",
+                        '7': m.get('hmatch', '?'),
+                        '8': str(m.get('terrain', '?')),
+                        '9': m.get('adversaire', ''),
+                    })
+                )
+
+                # Message 2 : liste des paires (message libre dans conversation ouverte)
+                liste = data.get('listePaires', '')
+                if liste:
+                    client.messages.create(
+                        from_=from_num,
+                        to=to_num,
+                        body=f"🎾 Les {data.get('nbPaires', '')} paires du tournoi :\n{liste}"
+                    )
+
+                results.append({'tel': m.get('tel',''), 'status': 'sent'})
+                sent += 1
+            except Exception as e:
+                results.append({'tel': m.get('tel',''), 'status': 'error', 'reason': str(e)})
+
+            time.sleep(0.3)
+
+        return jsonify({'sent': sent, 'total': len(messages), 'results': results})
 
     except Exception as e:
         import traceback
