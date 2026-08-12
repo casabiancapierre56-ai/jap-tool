@@ -3,17 +3,20 @@
 JAP Tool v3 — Application web Padel FFT
 Arena18 — jap.myconvi.fr
 """
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, session, redirect, url_for
 import re
 import time
 import io, json, base64, random, os, sqlite3
 from datetime import datetime
+from functools import wraps
+import hashlib
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'jap-tool-secret-2026-arena18')
 
 # ── SQLite ───────────────────────────────
 DB_PATH = os.environ.get('TOURNOIS_DB', os.path.join(os.path.dirname(__file__), 'tournois.db'))
@@ -47,7 +50,57 @@ def init_db():
                 details     TEXT NOT NULL
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS clubs (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom         TEXT NOT NULL,
+                slug        TEXT NOT NULL UNIQUE,
+                logo_url    TEXT,
+                nb_terrains INTEGER DEFAULT 2,
+                twilio_sid  TEXT,
+                twilio_token TEXT,
+                twilio_num  TEXT,
+                actif       INTEGER DEFAULT 1,
+                cree_le     TEXT NOT NULL
+            )
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                club_id     INTEGER NOT NULL,
+                email       TEXT NOT NULL UNIQUE,
+                password    TEXT NOT NULL,
+                nom         TEXT,
+                role        TEXT DEFAULT 'admin',
+                cree_le     TEXT NOT NULL,
+                FOREIGN KEY (club_id) REFERENCES clubs(id)
+            )
+        ''')
+        # Ajouter club_id aux tables existantes si pas déjà fait
+        try:
+            conn.execute('ALTER TABLE tournois ADD COLUMN club_id INTEGER DEFAULT 1')
+        except: pass
+        try:
+            conn.execute('ALTER TABLE sms_history ADD COLUMN club_id INTEGER DEFAULT 1')
+        except: pass
         conn.commit()
+
+        # Créer le club Arena18 par défaut si pas encore fait
+        existing = conn.execute('SELECT id FROM clubs WHERE slug=?', ('arena18',)).fetchone()
+        if not existing:
+            now = datetime.now().strftime('%d/%m/%Y %H:%M')
+            conn.execute(
+                'INSERT INTO clubs (nom, slug, nb_terrains, actif, cree_le) VALUES (?,?,?,?,?)',
+                ('Arena18 Padel Club', 'arena18', 2, 1, now)
+            )
+            conn.commit()
+            club = conn.execute('SELECT id FROM clubs WHERE slug=?', ('arena18',)).fetchone()
+            pwd_hash = hashlib.sha256('arena18admin2026'.encode()).hexdigest()
+            conn.execute(
+                'INSERT INTO users (club_id, email, password, nom, role, cree_le) VALUES (?,?,?,?,?,?)',
+                (club['id'], 'contact@arena18.fr', pwd_hash, 'Pierre Casabianca', 'superadmin', now)
+            )
+            conn.commit()
 
 init_db()
 
@@ -106,83 +159,28 @@ def min_to_hm(m):
     if m < 0: m = 0
     return f"{m//60:02d}:{m%60:02d}"
 
-# ── Parsing CSV FFT / MOJA (par en-tete, tolerant aux 2 formats) ──
-import unicodedata
-
-def _norm_header(h):
-    """minuscule, sans accent, espaces normalises — pour matcher un en-tete MOJA ou FFT."""
-    h = unicodedata.normalize('NFKD', h).encode('ascii', 'ignore').decode('ascii')
-    return ' '.join(h.strip().lower().split())
-
-# Champ interne -> en-tetes possibles (MOJA et ancien export FFT), deja normalises
-CSV_HEADER_ALIASES = {
-    'nomJ1':  ['nom joueur 1', 'nom j1'],
-    'prenJ1': ['prenom joueur 1', 'prenom j1'],
-    'licJ1':  ['licence joueur 1', 'lic j1'],
-    'telJ1':  ['telephone joueur 1', 'tel j1'],
-    'nomJ2':  ['nom joueur 2', 'nom j2'],
-    'prenJ2': ['prenom joueur 2', 'prenom j2'],
-    'licJ2':  ['licence joueur 2', 'lic j2'],
-    'telJ2':  ['telephone joueur 2', 'tel j2'],
-    'poids':  ['poids paire', 'poids'],
-}
-
-def _build_header_index(header_line):
-    """Retourne {champ_interne: index_colonne} ou leve une erreur explicite si un champ requis manque."""
-    cols = [_norm_header(c) for c in header_line.split(';')]
-    index = {}
-    for champ, alias in CSV_HEADER_ALIASES.items():
-        found = None
-        for a in alias:
-            if a in cols:
-                found = cols.index(a)
-                break
-        if found is None:
-            raise ValueError(f"Colonne introuvable dans le CSV : « {champ} » (en-tetes attendus : {', '.join(alias)})")
-        index[champ] = found
-    return index
-
+# ── Parsing CSV FFT ──────────────────────
 def parse_csv(text):
     text = text.replace('\r\n', '\n').replace('\r', '\n').lstrip('\ufeff')
     lines = [l for l in text.strip().split('\n') if l.strip()]
-    if not lines:
-        raise ValueError("CSV vide")
-
-    first_cols = [_norm_header(c) for c in lines[0].split(';')]
-    is_header = any(a in first_cols for aliases in CSV_HEADER_ALIASES.values() for a in aliases)
-
-    if is_header:
-        idx = _build_header_index(lines[0])
-        data_lines = lines[1:]
-    else:
-        # Pas d'en-tete reconnu : on retombe sur l'ancien positionnement fixe (compatibilite)
-        idx = {'nomJ1':3,'prenJ1':4,'licJ1':6,'telJ1':10,'nomJ2':11,'prenJ2':12,'licJ2':14,'telJ2':18,'poids':19}
-        data_lines = lines
-
+    start = 1 if 'epreuve' in lines[0].lower() or 'nom j1' in lines[0].lower() else 0
     paires = []
-    for line in data_lines:
+    for line in lines[start:]:
         c = line.split(';')
-        if len(c) <= max(idx.values()):
-            continue
-        poids_raw = c[idx['poids']].strip()
-        poids = int(poids_raw) if poids_raw.isdigit() else None
-        if not poids:
-            continue
+        if len(c) < 20: continue
+        poids = int(c[19].strip()) if c[19].strip().isdigit() else None
+        if not poids: continue
         paires.append({
-            'nomJ1':   c[idx['nomJ1']].strip(),
-            'prenJ1':  c[idx['prenJ1']].strip().capitalize(),
-            'licJ1':   c[idx['licJ1']].strip().replace(' (2026)','').replace(' (2025)',''),
-            'telJ1':   c[idx['telJ1']].strip().replace(' ',''),
-            'nomJ2':   c[idx['nomJ2']].strip(),
-            'prenJ2':  c[idx['prenJ2']].strip().capitalize(),
-            'licJ2':   c[idx['licJ2']].strip().replace(' (2026)','').replace(' (2025)',''),
-            'telJ2':   c[idx['telJ2']].strip().replace(' ',''),
+            'nomJ1':   c[3].strip(),
+            'prenJ1':  c[4].strip().capitalize(),
+            'licJ1':   c[6].strip().replace(' (2026)','').replace(' (2025)',''),
+            'telJ1':   c[10].strip().replace(' ',''),
+            'nomJ2':   c[11].strip(),
+            'prenJ2':  c[12].strip().capitalize(),
+            'licJ2':   c[14].strip().replace(' (2026)','').replace(' (2025)',''),
+            'telJ2':   c[18].strip().replace(' ',''),
             'poids':   poids,
         })
-
-    if not paires:
-        raise ValueError("Aucune paire valide trouvee dans le CSV (verifie la colonne Poids)")
-
     paires.sort(key=lambda p: p['poids'])
     for i, p in enumerate(paires):
         p['id']  = i + 1
@@ -236,9 +234,7 @@ def build_tableau(paires, contraintes=None):
     if contraintes:
         autres = sorted(autres, key=get_contrainte)
 
-    # Completer avec des paires vides si pas assez — TOUJOURS en fin de liste
-    # (deterministe : le/les slot(s) sans adversaire reel tombent toujours sur le
-    # dernier match du 1er tour, jamais tire au hasard comme avant)
+    # Compléter autres avec des paires vides si pas assez
     while len(autres) < 4:
         autres.append({'id':0,'nomJ1':'?','prenJ1':'?','nomJ2':'?','prenJ2':'?',
                        'poids':0,'ts':None,'nc':'?','nf':'?','licJ1':'','licJ2':'',
@@ -434,24 +430,7 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu, data
                 c.setFillColorRGB(0, 0, 0)
                 c.drawString(X_EQ_START, y, texte)
         elif num in (7, 8, 9, 10) and not format8:
-            if m.get('pA') and m.get('pB'):
-                # Exemption (nombre de paires impair) : la paire qualifiee d'office
-                # est connue des le tirage, on l'affiche a gauche en plus du TS a droite
-                pa, pb = m['pA'], m['pB']
-                ea = f"{pa['prenJ1']} {pa['nomJ1']} / {pa['prenJ2']} {pa['nomJ2']} (qualifie d'office)"
-                c.setFont("Helvetica-Bold", fs)
-                while c.stringWidth(ea, "Helvetica-Bold", fs) > max_w and fs > 5.5:
-                    fs -= 0.2
-                c.setFillColorRGB(0, 0, 0)
-                c.drawString(X_EQ_START, y - 7, ea)
-                ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
-                c.setFont("Helvetica-Bold", fs)
-                while c.stringWidth(ts_str, "Helvetica-Bold", fs) > max_w and fs > 6:
-                    fs -= 0.3
-                c.setFillColorRGB(0.75, 0.1, 0.05)
-                c.drawRightString(X_EQ_END, y - 7, ts_str)
-                c.setFillColorRGB(0, 0, 0)
-            elif m.get('pB'):
+            if m.get('pB'):
                 pb = m['pB']
                 ts_str = f"{pb['prenJ1']} {pb['nomJ1']} / {pb['prenJ2']} {pb['nomJ2']} ({pb['ts']})"
                 c.setFont("Helvetica-Bold", fs)
@@ -525,6 +504,7 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
 
 # ── Routes Flask ─────────────────────────
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
@@ -710,6 +690,91 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         'format8paires': True,
     })
 
+
+# ── AUTH ─────────────────────────────────────────────────────────────────
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'club_id' not in session:
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    return render_template('login.html')
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email','').strip().lower()
+    password = data.get('password','')
+    pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+    with get_db() as conn:
+        user = conn.execute(
+            'SELECT u.*, c.nom as club_nom, c.slug, c.nb_terrains, c.twilio_sid, c.twilio_token, c.twilio_num '
+            'FROM users u JOIN clubs c ON u.club_id=c.id '
+            'WHERE u.email=? AND u.password=? AND c.actif=1',
+            (email, pwd_hash)
+        ).fetchone()
+    if not user:
+        return jsonify({'error': 'Email ou mot de passe incorrect'}), 401
+    session['club_id']   = user['club_id']
+    session['club_nom']  = user['club_nom']
+    session['club_slug'] = user['slug']
+    session['user_id']   = user['id']
+    session['user_nom']  = user['nom']
+    session['user_role'] = user['role']
+    session['nb_terrains'] = user['nb_terrains']
+    return jsonify({'ok': True, 'club': user['club_nom'], 'role': user['role']})
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login_page'))
+
+@app.route('/api/session', methods=['GET'])
+def get_session():
+    if 'club_id' not in session:
+        return jsonify({'logged': False}), 401
+    return jsonify({
+        'logged': True,
+        'club_id':   session['club_id'],
+        'club_nom':  session['club_nom'],
+        'user_nom':  session['user_nom'],
+        'user_role': session['user_role'],
+    })
+
+# ── ADMIN (superadmin seulement) ─────────────────────────────────────────
+@app.route('/admin/clubs', methods=['GET'])
+def admin_clubs():
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    with get_db() as conn:
+        clubs = conn.execute('SELECT * FROM clubs ORDER BY cree_le DESC').fetchall()
+    return jsonify([dict(c) for c in clubs])
+
+@app.route('/admin/club/creer', methods=['POST'])
+def admin_creer_club():
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    data = request.get_json()
+    now = datetime.now().strftime('%d/%m/%Y %H:%M')
+    with get_db() as conn:
+        conn.execute(
+            'INSERT INTO clubs (nom, slug, nb_terrains, actif, cree_le) VALUES (?,?,?,1,?)',
+            (data['nom'], data['slug'], data.get('nb_terrains', 2), now)
+        )
+        conn.commit()
+        club = conn.execute('SELECT id FROM clubs WHERE slug=?', (data['slug'],)).fetchone()
+        pwd_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+        conn.execute(
+            'INSERT INTO users (club_id, email, password, nom, role, cree_le) VALUES (?,?,?,?,?,?)',
+            (club['id'], data['email'], pwd_hash, data.get('nom','Admin'), 'admin', now)
+        )
+        conn.commit()
+    return jsonify({'ok': True})
+
 @app.route('/generer', methods=['POST'])
 def generer():
     data = request.get_json()
@@ -777,26 +842,6 @@ def generer():
     m4a,m4b = get_p(T[12]),get_p(T[13])
     qf0,qf3,qf4,qf7 = T[0]['p'],T[6]['p'],T[8]['p'],T[14]['p']
 
-    # ── Nombre de paires impair / < 12 : exemption automatique ──────────
-    # Si un des 4 matchs du 1er tour n'a qu'une seule vraie paire (l'autre
-    # est un slot vide faute de 12e paire), cette paire est qualifiee
-    # directement pour le quart de finale correspondant — au lieu d'etre
-    # affichee comme jouant un 1/8 contre un adversaire fantome.
-    exemptions_impair = {}   # id de la paire -> (numero du quart, dict de la paire)
-    matchs_1_8_annules = set()
-    if not huit_paires:
-        for num, a, b, qf_opp, qf_num in [
-            (1, m1a, m1b, qf0, 7), (2, m2a, m2b, qf3, 8),
-            (3, m3a, m3b, qf4, 9), (4, m4a, m4b, qf7, 10),
-        ]:
-            a_ok, b_ok = a['id'] > 0, b['id'] > 0
-            if a_ok and b_ok:
-                continue
-            matchs_1_8_annules.add(num)
-            survivant = a if a_ok else (b if b_ok else None)
-            if survivant is not None:
-                exemptions_impair[survivant['id']] = (qf_num, survivant)
-
     if huit_paires:
         # 8 paires : pas de 1/8, QF directs entre BYE vs BYE
         qf_pairs = [(T[0]['p'],T[2]['p']),(T[4]['p'],T[6]['p']),
@@ -839,21 +884,6 @@ def generer():
             {'num':20, 'ordre':'FINALE', 'libA':'GAGNANT MATCH 15','libB':'GAGNANT MATCH 16'},
         ]
 
-    # Applique les exemptions "nombre de paires impair" aux matchs deja construits :
-    # le 1/8 concerne est vide (personne a afficher), le quart correspondant
-    # recoit directement la paire survivante au lieu de "GAGNANT MATCH X".
-    if not huit_paires and (matchs_1_8_annules or exemptions_impair):
-        qf_num_to_survivant = {qf_num: p for (qf_num, p) in exemptions_impair.values()}
-        for m in matchs:
-            if m['num'] in matchs_1_8_annules:
-                m['pA'] = None
-                m['pB'] = None
-                m['libA'] = 'Exemption (nombre de paires impair)'
-                m['libB'] = 'voir le 1/4 correspondant'
-            if m['num'] in qf_num_to_survivant:
-                m.pop('libA', None)
-                m['pA'] = qf_num_to_survivant[m['num']]
-
     for m in matchs:
         h_m, piste = horaires.get(m['num'], ('?', '?'))
         m['heure'] = h_m
@@ -862,17 +892,12 @@ def generer():
     paire_match = {}
     if not huit_paires:
         for num, (sa,sb) in {1:(2,3),2:(4,5),3:(10,11),4:(12,13)}.items():
-            if num in matchs_1_8_annules:
-                continue  # pas de vrai match : la paire survivante est traitee comme exemption ci-dessous
             h_m, piste = horaires[num]
             pa, pb = T[sa]['p'], T[sb]['p']
             if pa['id'] > 0:
                 paire_match[pa['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pb,'tour':'1/8 de finale'}
             if pb['id'] > 0:
                 paire_match[pb['id']] = {'num':num,'h':h_m,'piste':piste,'adv':pa,'tour':'1/8 de finale'}
-        for pid, (qf_num, survivant) in exemptions_impair.items():
-            h_m, piste = horaires[qf_num]
-            paire_match[pid] = {'num':qf_num,'h':h_m,'piste':piste,'adv':None,'tour':'Quart de finale','bye':True}
     # BYE → QF pour tous les slots bye
     for slot_idx, qf_num in [(0,7),(6,8),(8,9),(14,10)]:
         p = T[slot_idx]['p']
