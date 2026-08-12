@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--or:#E8500A;--orl:#FF6B2B;--dk:#0F0F0F;--dk2:#1A1A1A;--dk3:#242424;--bd:#2E2E2E;--tx:#F0EDE8;--tx2:#9A9590;--gr:#2ECC71;--am:#F0A500;--mo:'DM Mono',monospace;--sa:'Syne',sans-serif;}
-:root.light{--dk:#F5F5F0;--dk2:#FFFFFF;--dk3:#EEEDE8;--bd:#D8D6D0;--tx:#1A1A1A;--tx2:#6A6A6A;}
+:root.light{--dk:#FAFAF8;--dk2:#FFFFFF;--dk3:#F3F2EE;--bd:#E4E2DC;--tx:#1C1C1A;--tx2:#726E66;}:root.light .hdr,:root.light .side{box-shadow:0 1px 2px rgba(0,0,0,.04);}:root.light .card,:root.light .mc,:root.light .t-card,:root.light .modal{box-shadow:0 1px 3px rgba(0,0,0,.05);}
 *{transition:background .2s,color .2s,border-color .2s;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh;}
@@ -286,13 +286,13 @@ tr:hover td{background:var(--dk3);}
       <button class="tab" onclick="st('th')">Horaires</button>
       <button class="tab" onclick="st('tm')">WhatsApp</button>
       <button class="tab" onclick="st('tc')">📋 Convocations</button>
-      <button class="tab" onclick="st('ts2');chargerListeTournois()">📂 Tournois</button>
+      <button class="tab" onclick="st('ts2');chargerListeTournois()">📂 Tournois</button><button class="tab" onclick="st('tf')">💰 Finances</button>
     </div>
     <div id="tt"><div class="empty"><div class="empty-i">🎾</div>Glisse le CSV FFT et clique Générer</div></div>
     <div id="th" style="display:none"><div class="empty"><div class="empty-i">🕐</div>Les horaires apparaîtront ici</div></div>
     <div id="tm" style="display:none"><div class="empty"><div class="empty-i">💬</div>Les messages apparaîtront ici</div></div>
     <div id="tc" style="display:none"><div class="empty"><div class="empty-i">📋</div>Les convocations apparaîtront ici</div></div>
-  <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div>
+  <div id="ts2" style="display:none"><div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Chargement...</div></div><div id="tf" style="display:none"><div class="stl">💰 Chiffre d'affaires / Marge</div><div class="fi"><label>Tarif inscription / paire (€)</label><input id="fin-tarif" type="number" value="25" min="0" step="0.5" oninput="calcFinances()"></div><div class="fi"><label>Coût juge arbitre (€)</label><input id="fin-juge" type="number" value="0" min="0" oninput="calcFinances()"></div><div class="fi"><label>Coût tubes de balles (€)</label><input id="fin-balles" type="number" value="0" min="0" oninput="calcFinances()"></div><div class="fi"><label>Coût tournoi FFT (€)</label><input id="fin-fft" type="number" value="0" min="0" oninput="calcFinances()"></div><div class="div"></div><div class="fi"><label>Nombre de paires inscrites</label><input id="fin-nbpaires" type="number" value="0" readonly style="opacity:.6;"></div><div class="fi"><label>Chiffre d'affaires</label><input id="fin-ca" readonly value="0 €"></div><div class="fi"><label>Total coûts</label><input id="fin-couts" readonly value="0 €"></div><div class="fi"><label>Marge</label><input id="fin-marge" readonly value="0 €"></div><button class="btn" onclick="sauvegarderFinances()">💾 Enregistrer les finances</button></div>
   </div>
 </div>
 
@@ -440,11 +440,11 @@ tr:hover td{background:var(--dk3);}
 
 <script>
 let csvText='', genData=null, pairesLoaded=[];
-let editPaireId=null, forfaitPaireId=null;
+let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}afficherUserChip();
 
 function st(n){
-  ['tt','th','tm','tc','ts2'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm','tc','ts2'][i]===n));
+  ['tt','th','tm','tc','ts2','tf'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['tt','th','tm','tc','ts2','tf'][i]===n));
 }
 
 function loadFile(file){
@@ -570,7 +570,7 @@ async function generer(){
     document.getElementById('b-tab').disabled=false;
     document.getElementById('b-fdr').disabled=false;
     document.getElementById('b-csv').disabled=false;
-    document.getElementById('b-db').disabled=false;
+calcFinances();    document.getElementById('b-db').disabled=false;
     document.getElementById('b-wa').disabled=false;
     document.getElementById('b-ajout').disabled=false;
     document.getElementById('b-accueil').disabled=false;
@@ -1275,7 +1275,7 @@ function toggleTheme(){
   if(root.classList.contains('light')){root.classList.remove('light');btn.textContent='☀️ Mode clair';localStorage.setItem('theme','dark');}
   else{root.classList.add('light');btn.textContent='🌙 Mode sombre';localStorage.setItem('theme','light');}
 }
-if(localStorage.getItem('theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
+if(localStorage.getItem('theme'!=='dark''){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
 loadTwilio();
 restaurerSession();
 
@@ -1291,15 +1291,15 @@ function getTournoiPayload(){
     nbPaires: genData ? genData.paires.length : 0,
     niveau:   document.getElementById('niveau').value,
     genData:  genData,
-    tournoiId: window._tournoiIdEnCours || null,
+    tournoiId: window._tournoiIdEnCours || null,finances: getFinancesPayload(),
     params: {
       nomTournoi: document.getElementById('nt').value,
       sponsor:    document.getElementById('sp').value,
-      dt,
-      hd:    document.getElementById('hd').value,
+        dt,
+hd:    document.getElementById('hd').value,
       np:    document.getElementById('np').value,
-      dp:    document.getElementById('dp').value,
-      dc:    document.getElementById('dc').value,
+        dp:    document.getElementById('dp').value,
+dc:    document.getElementById('dc').value,
       fg:    document.getElementById('fg').value,
       fgCls: document.getElementById('fg-cls').value,
       niveau:document.getElementById('niveau').value,
@@ -1474,7 +1474,7 @@ async function chargerTournoi(tid){
       }
       if(!found){const o=document.createElement('option');o.value=p.fgCls;o.textContent=p.fgCls;fgcSel.appendChild(o);fgcSel.value=p.fgCls;}
     }
-    genData = session.genData;
+    genData = session.genData;chargerFinancesDansUI(session.finances);
     renTab(genData); renH(genData); renMsg(genData); renConvocations(genData);
     if(genData.alertes) renAlertes(genData.alertes);
     document.getElementById('b-tab').disabled = false;
