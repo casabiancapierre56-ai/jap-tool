@@ -746,6 +746,80 @@ def get_session():
     })
 
 # ── ADMIN (superadmin seulement) ─────────────────────────────────────────
+
+@app.route('/admin')
+def admin_page():
+    if session.get('user_role') != 'superadmin':
+        return redirect(url_for('index'))
+    return render_template('admin.html')
+
+@app.route('/admin/clubs/liste', methods=['GET'])
+def admin_liste_clubs():
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    with get_db() as conn:
+        clubs = conn.execute('''
+            SELECT c.*, 
+                   COUNT(DISTINCT t.id) as nb_tournois,
+                   COUNT(DISTINCT u.id) as nb_users
+            FROM clubs c
+            LEFT JOIN tournois t ON t.club_id = c.id
+            LEFT JOIN users u ON u.club_id = c.id
+            GROUP BY c.id
+            ORDER BY c.cree_le DESC
+        ''').fetchall()
+    return jsonify([dict(c) for c in clubs])
+
+@app.route('/admin/club/modifier/<int:cid>', methods=['POST'])
+def admin_modifier_club(cid):
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    data = request.get_json()
+    with get_db() as conn:
+        conn.execute(
+            'UPDATE clubs SET nom=?, nb_terrains=?, actif=? WHERE id=?',
+            (data['nom'], data.get('nb_terrains', 2), data.get('actif', 1), cid)
+        )
+        conn.commit()
+    return jsonify({'ok': True})
+
+@app.route('/admin/club/supprimer/<int:cid>', methods=['DELETE'])
+def admin_supprimer_club(cid):
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    if cid == 1:
+        return jsonify({'error': 'Impossible de supprimer le club principal'}), 400
+    with get_db() as conn:
+        conn.execute('DELETE FROM tournois WHERE club_id=?', (cid,))
+        conn.execute('DELETE FROM sms_history WHERE club_id=?', (cid,))
+        conn.execute('DELETE FROM users WHERE club_id=?', (cid,))
+        conn.execute('DELETE FROM clubs WHERE id=?', (cid,))
+        conn.commit()
+    return jsonify({'ok': True})
+
+@app.route('/admin/users/liste', methods=['GET'])
+def admin_liste_users():
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    with get_db() as conn:
+        users = conn.execute('''
+            SELECT u.id, u.email, u.nom, u.role, u.cree_le, c.nom as club_nom
+            FROM users u JOIN clubs c ON u.club_id=c.id
+            ORDER BY u.cree_le DESC
+        ''').fetchall()
+    return jsonify([dict(u) for u in users])
+
+@app.route('/admin/user/reset-password', methods=['POST'])
+def admin_reset_password():
+    if session.get('user_role') != 'superadmin':
+        return jsonify({'error': 'Non autorisé'}), 403
+    data = request.get_json()
+    pwd_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+    with get_db() as conn:
+        conn.execute('UPDATE users SET password=? WHERE id=?', (pwd_hash, data['user_id']))
+        conn.commit()
+    return jsonify({'ok': True})
+
 @app.route('/admin/clubs', methods=['GET'])
 def admin_clubs():
     if session.get('user_role') != 'superadmin':
