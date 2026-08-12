@@ -502,11 +502,6 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
     alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
     return alertes
 
-# ── Routes Flask ─────────────────────────
-@app.route('/')
-@login_required
-def index():
-    return render_template('index.html')
 
 
 def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_classement,
@@ -699,6 +694,12 @@ def login_required(f):
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
     return decorated
+
+# ── Routes Flask ─────────────────────────
+@app.route('/')
+@login_required
+def index():
+        return render_template('index.html')
 
 @app.route('/login', methods=['GET'])
 def login_page():
