@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JAP Tool — Connexion</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'Helvetica Neue',sans-serif;
+    background:#0d0d0d;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .container{
+    width:100%;
+    max-width:400px;
+    padding:20px;
+  }
+  .logo{
+    text-align:center;
+    margin-bottom:32px;
+  }
+  .logo-title{
+    font-size:28px;
+    font-weight:800;
+    color:#E8500A;
+    letter-spacing:2px;
+  }
+  .logo-sub{
+    font-size:12px;
+    color:#666;
+    margin-top:4px;
+    letter-spacing:1px;
+  }
+  .card{
+    background:#1a1a1a;
+    border:1px solid #2a2a2a;
+    border-radius:12px;
+    padding:32px;
+  }
+  .card h2{
+    font-size:18px;
+    color:#fff;
+    margin-bottom:24px;
+    font-weight:600;
+  }
+  .field{
+    margin-bottom:16px;
+  }
+  .field label{
+    display:block;
+    font-size:11px;
+    color:#888;
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .field input{
+    width:100%;
+    background:#111;
+    border:1px solid #333;
+    color:#fff;
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:14px;
+    outline:none;
+    transition:border-color .2s;
+  }
+  .field input:focus{
+    border-color:#E8500A;
+  }
+  .btn-login{
+    width:100%;
+    background:#E8500A;
+    color:#fff;
+    border:none;
+    padding:12px;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:8px;
+    transition:opacity .2s;
+  }
+  .btn-login:hover{opacity:.9;}
+  .btn-login:disabled{opacity:.5;cursor:not-allowed;}
+  .error{
+    background:#2a0a0a;
+    border:1px solid #8a2020;
+    color:#ff8080;
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:13px;
+    margin-top:14px;
+    display:none;
+  }
+  .footer{
+    text-align:center;
+    margin-top:24px;
+    font-size:11px;
+    color:#444;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-title">JAP Tool</div>
+    <div class="logo-sub">Gestion Tournois Padel FFT</div>
+  </div>
+  <div class="card">
+    <h2>Connexion</h2>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="votre@email.fr" autocomplete="email"/>
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Se connecter</button>
+    <div class="error" id="error-msg"></div>
+  </div>
+  <div class="footer">ARENA18 PADEL CLUB · PLAY HARD. ENJOY MORE.</div>
+</div>
+<script>
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter') doLogin();
+});
+
+async function doLogin(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('btn-login');
+  const err = document.getElementById('error-msg');
+
+  if(!email || !password){
+    showError('Remplis les deux champs.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Connexion...';
+  err.style.display = 'none';
+
+  try {
+    const r = await fetch('/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await r.json();
+    if(r.ok){
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Erreur de connexion');
+    }
+  } catch(e){
+    showError('Erreur réseau');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Se connecter';
+}
+
+function showError(msg){
+  const err = document.getElementById('error-msg');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+</script>
+</body>
+</html>
