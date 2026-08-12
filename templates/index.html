@@ -185,7 +185,7 @@ tr:hover td{background:var(--dk3);}
 <div class="wrap">
   <div class="side">
     <!-- ⚙ TOURNOI -->
-    <div class="stl">⚙ Tournoi</div>
+    <div class="stl">① Infos du tournoi</div>
     <div class="fi"><label>Niveau</label>
       <select id="niveau" onchange="onNiveauChange()">
         <option value="P25">P25</option><option value="P100">P100</option>
@@ -205,13 +205,13 @@ tr:hover td{background:var(--dk3);}
       <div class="fi"><label>Durée principal (min)</label><input type="number" id="dp" value="45" min="15"/></div>
     </div>
     <div class="fi"><label>Durée classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
-    <div class="fi"><label>Format — Tableau principal</label><select id="fg"></select></div>
-    <div class="fi"><label>Format — Classement</label><select id="fg-cls"></select></div>
+    <div class="fi"><label>Format — Tableau principal</label><select id="fg"></select><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;">Répartition des paires dans le tableau</div></div>
+    <div class="fi"><label>Format — Classement</label><select id="fg-cls"></select><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;">Type de classement final à générer</div></div>
 
     <div class="div"></div>
 
     <!-- 📂 CSV -->
-    <div class="stl">📂 CSV FFT</div>
+    <div class="stl">② Importer le CSV</div>
     <div class="dz" id="dz">
       <input type="file" accept=".csv,.txt" id="fi-csv" onchange="loadFile(this.files[0])"/>
       <div class="dz-icon">📋</div>
@@ -223,7 +223,7 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <!-- ⏰ CONTRAINTES -->
-    <div class="stl">⏰ Contraintes
+    <div class="stl">③ Contraintes horaires (optionnel)
       <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
     </div>
     <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Paire indisponible avant une certaine heure</div>
@@ -241,7 +241,7 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <!-- 📄 DOCUMENTS PDF -->
-    <div class="stl">📄 Documents</div>
+    <div class="stl">④ Documents à imprimer</div>
     <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
     <button class="btn btn2" id="b-accueil" onclick="ouvrirAccueil()" disabled style="border-color:#3498db;color:#3498db;">📋 Feuille accueil caisse</button>
@@ -249,7 +249,7 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <!-- 💾 SAUVEGARDES -->
-    <div class="stl">💾 Sauvegardes</div>
+    <div class="stl">⑤ Sauvegarder le tournoi</div>
     <div class="row2">
       <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 CSV</button>
       <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Base</button>
@@ -258,7 +258,7 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <!-- 📱 ENVOI SMS / WHATSAPP -->
-    <div class="stl">📱 Convocations</div>
+    <div class="stl">⑥ Envoyer les convocations</div><button type="button" onclick="document.getElementById('tw-box').style.display=document.getElementById('tw-box').style.display==='block'?'none':'block';" style="background:none;border:none;color:var(--tx2);font-size:10px;font-family:var(--mo);cursor:pointer;text-decoration:underline;padding:0;margin-bottom:6px;">⚙️ Config. Twilio (SID / Token)</button>
     <div class="tw-box" id="tw-box" style="display:none;padding:10px;margin-bottom:6px;">
       <div class="fi" style="margin-bottom:6px;"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
       <div class="fi" style="margin-bottom:6px;"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
@@ -574,7 +574,7 @@ calcFinances();    document.getElementById('b-db').disabled=false;
     document.getElementById('b-wa').disabled=false;
     document.getElementById('b-ajout').disabled=false;
     document.getElementById('b-accueil').disabled=false;
-    document.getElementById('tw-box').style.display='block';
+    
     const nbM = data.nbMatchs || 20;
     document.getElementById('sb').textContent=`${data.paires.length} paires · TMC ${nbM} matchs · ${new Date().toLocaleTimeString('fr-FR')}`;
     mettreAJourHeaderTitre();
@@ -1261,7 +1261,7 @@ function appliquerRestauration(){
     document.getElementById('dz').classList.add('ok');
     document.getElementById('dz-ok').textContent='✓ Session restaurée — prêt à regénérer';
     document.getElementById('dz-ok').style.display='block';
-    document.getElementById('tw-box').style.display = 'block';
+    
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré · ${session.savedAt}`;
     mettreAJourHeaderTitre();
     document.getElementById('restore-banner').remove();
@@ -1497,7 +1497,7 @@ async function chargerTournoi(tid){
     document.getElementById('b-wa').disabled  = false;
     document.getElementById('b-ajout').disabled = false;
     document.getElementById('b-accueil').disabled = false;
-    document.getElementById('tw-box').style.display = 'block';
+    
     document.getElementById('sb').textContent = `${genData.paires.length} paires · Restauré depuis base · ${t.cree_le}`;
     sauvegarderSession();
     st('tt');
