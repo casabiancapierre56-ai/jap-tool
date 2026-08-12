@@ -1121,11 +1121,13 @@ def sauvegarder_tournoi():
     niveau     = data.get('niveau', '')
     gen_data   = data.get('genData', {})
     params     = data.get('params', {})
+    finances   = data.get('finances', {})
     tournoi_id = data.get('tournoiId')  # None = nouveau, int = mise à jour
 
     payload = json.dumps({
         'genData': gen_data,
         'params':  params,
+        'finances': finances,
     }, ensure_ascii=False)
 
     now = datetime.now().strftime('%d/%m/%Y %H:%M')
