@@ -776,6 +776,7 @@ def admin_creer_club():
     return jsonify({'ok': True})
 
 @app.route('/generer', methods=['POST'])
+@login_required
 def generer():
     data = request.get_json()
     csv_text         = data['csv']
@@ -1034,6 +1035,7 @@ def generer():
 # ══════════════════════════════════════════
 
 @app.route('/tournoi/sauvegarder', methods=['POST'])
+@login_required
 def sauvegarder_tournoi():
     """Sauvegarde ou met à jour un tournoi en base SQLite.
     Si tournoiId est fourni, met à jour l'entrée existante."""
@@ -1064,9 +1066,10 @@ def sauvegarder_tournoi():
             msg = f'Tournoi #{tournoi_id} mis à jour'
         else:
             # Vérifier doublon par nom + date
+            club_id = session.get('club_id', 1)
             existing = conn.execute(
-                'SELECT id FROM tournois WHERE nom=? AND date_str=? ORDER BY id DESC LIMIT 1',
-                (nom, date_str)
+                'SELECT id FROM tournois WHERE nom=? AND date_str=? AND club_id=? ORDER BY id DESC LIMIT 1',
+                (nom, date_str, club_id)
             ).fetchone()
             if existing:
                 # Mettre à jour le tournoi existant
@@ -1132,6 +1135,7 @@ def supprimer_tournoi(tid):
 
 
 @app.route('/tournoi/modifier', methods=['POST'])
+@login_required
 def modifier_tournoi():
     """Modifie un tournoi en minimisant les changements.
     Compare les horaires AVANT et APRES pour ne lister que les paires
@@ -1273,6 +1277,7 @@ def modifier_tournoi():
 
 
 @app.route('/sms/historique/sauvegarder', methods=['POST'])
+@login_required
 def sauvegarder_historique_sms():
     """Sauvegarde un envoi SMS en base."""
     data = request.get_json()
@@ -1283,10 +1288,11 @@ def sauvegarder_historique_sms():
     details     = json.dumps(data.get('details', []), ensure_ascii=False)
     date_envoi  = datetime.now().strftime('%d/%m/%Y %H:%M')
 
+    club_id = session.get('club_id', 1)
     with get_db() as conn:
         conn.execute(
-            'INSERT INTO sms_history (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details) VALUES (?,?,?,?,?,?)',
-            (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details)
+            'INSERT INTO sms_history (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details, club_id) VALUES (?,?,?,?,?,?,?)',
+            (tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total, details, club_id)
         )
         conn.commit()
 
@@ -1294,11 +1300,14 @@ def sauvegarder_historique_sms():
 
 
 @app.route('/sms/historique/liste', methods=['GET'])
+@login_required
 def liste_historique_sms():
-    """Retourne l'historique des envois SMS."""
+    """Retourne l'historique des envois SMS pour ce club."""
+    club_id = session['club_id']
     with get_db() as conn:
         rows = conn.execute(
-            'SELECT id, tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total FROM sms_history ORDER BY id DESC LIMIT 100'
+            'SELECT id, tournoi_nom, tournoi_id, date_envoi, nb_envoyes, nb_total FROM sms_history WHERE club_id=? ORDER BY id DESC LIMIT 100',
+            (club_id,)
         ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -1316,6 +1325,7 @@ def detail_historique_sms(hid):
 
 
 @app.route('/sms/historique/supprimer/<int:hid>', methods=['DELETE'])
+@login_required
 def supprimer_historique_sms(hid):
     """Supprime une entrée de l'historique."""
     with get_db() as conn:
@@ -1325,6 +1335,7 @@ def supprimer_historique_sms(hid):
 
 
 @app.route('/pdf/accueil', methods=['POST'])
+@login_required
 def pdf_accueil():
     """Génère la feuille d'accueil caisse A4 portrait."""
     try:
@@ -1503,6 +1514,7 @@ def pdf_accueil():
 
 
 @app.route('/whatsapp/envoyer', methods=['POST'])
+@login_required
 def whatsapp_envoyer():
     """Envoie les convocations WhatsApp via Twilio API."""
     try:
@@ -1573,6 +1585,7 @@ def whatsapp_envoyer():
         return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
 
 @app.route('/pdf/tableau', methods=['POST'])
+@login_required
 def pdf_tableau():
     data = request.get_json()
     T_raw = data['tableau']
@@ -1587,6 +1600,7 @@ def pdf_tableau():
         as_attachment=True, download_name='tableau_p250.pdf')
 
 @app.route('/pdf/feuille', methods=['POST'])
+@login_required
 def pdf_feuille():
     try:
         data = request.get_json()
@@ -1603,6 +1617,7 @@ def pdf_feuille():
         return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
 
 @app.route('/sms/envoyer', methods=['POST'])
+@login_required
 def envoyer_sms():
     data = request.get_json()
     messages    = data['messages']
