@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JAP Tool — Administration</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0d0d0d;--dk2:#141414;--dk3:#1a1a1a;--bd:#2a2a2a;
+  --or:#E8500A;--gr:#27AE60;--rd:#e74c3c;--bl:#2980B9;
+  --tx:#e8e8e8;--tx2:#888;--mo:'Courier New',monospace;
+}
+body{font-family:'Helvetica Neue',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;}
+
+/* HEADER */
+.hdr{background:var(--dk3);border-bottom:1px solid var(--bd);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.hdr-left{display:flex;align-items:center;gap:12px;}
+.hdr-logo{font-size:14px;font-weight:800;color:var(--or);letter-spacing:1px;}
+.hdr-title{font-size:12px;color:var(--tx2);}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.btn-back{background:none;border:1px solid var(--bd);color:var(--tx2);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;text-decoration:none;}
+.btn-back:hover{border-color:var(--or);color:var(--or);}
+
+/* LAYOUT */
+.container{max-width:1100px;margin:0 auto;padding:24px 16px;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--bd);padding-bottom:0;}
+.tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--tx2);transition:all .2s;}
+.tab.active{color:var(--or);border-bottom-color:var(--or);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* CARDS */
+.section-title{font-size:13px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.fi{display:flex;flex-direction:column;gap:5px;}
+.fi label{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;}
+.fi input,.fi select{background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:8px 12px;border-radius:6px;font-size:13px;outline:none;}
+.fi input:focus,.fi select:focus{border-color:var(--or);}
+
+/* BTNS */
+.btn{display:inline-block;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;}
+.btn-primary{background:var(--or);color:#fff;}
+.btn-primary:hover{opacity:.9;}
+.btn-danger{background:none;border:1px solid var(--rd);color:var(--rd);font-size:11px;padding:4px 10px;}
+.btn-danger:hover{background:var(--rd);color:#fff;}
+.btn-sm{font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--bd);color:var(--tx2);background:none;cursor:pointer;}
+.btn-sm:hover{border-color:var(--or);color:var(--or);}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{background:var(--dk3);color:var(--tx2);padding:8px 12px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--bd);}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--bd);vertical-align:middle;}
+.tbl tr:hover td{background:var(--dk3);}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;}
+.badge-green{background:#0a2a0a;color:#27AE60;border:1px solid #27AE60;}
+.badge-red{background:#2a0a0a;color:#e74c3c;border:1px solid #e74c3c;}
+.badge-blue{background:#0a1a2a;color:#2980B9;border:1px solid #2980B9;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--dk3);border:1px solid var(--bd);border-radius:8px;padding:16px;text-align:center;}
+.stat-num{font-size:28px;font-weight:800;color:var(--or);}
+.stat-label{font-size:11px;color:var(--tx2);margin-top:4px;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--dk3);border:1px solid var(--bd);border-radius:12px;padding:24px;width:100%;max-width:480px;}
+.modal h3{font-size:16px;margin-bottom:16px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.modal-btn{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;}
+.modal-btn.cancel{background:var(--dk2);color:var(--tx2);}
+.modal-btn.primary{background:var(--or);color:#fff;}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--gr);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;display:none;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <span class="hdr-logo">JAP Tool</span>
+    <span class="hdr-title">/ Administration</span>
+  </div>
+  <div class="hdr-right">
+    <a href="/" class="btn-back">← Retour à l'outil</a>
+    <a href="/logout" class="btn-back">⎋ Déconnexion</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-clubs">—</div>
+      <div class="stat-label">Clubs actifs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-users">—</div>
+      <div class="stat-label">Utilisateurs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-tournois">—</div>
+      <div class="stat-label">Tournois total</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('clubs')">🏟 Clubs</div>
+    <div class="tab" onclick="showTab('users')">👤 Utilisateurs</div>
+    <div class="tab" onclick="showTab('nouveau')">➕ Nouveau club</div>
+  </div>
+
+  <!-- Tab Clubs -->
+  <div class="tab-content active" id="tab-clubs">
+    <div class="section-title">Clubs enregistrés</div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nom du club</th>
+          <th>Slug</th>
+          <th>Terrains</th>
+          <th>Tournois</th>
+          <th>Utilisateurs</th>
+          <th>Statut</th>
+          <th>Créé le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="clubs-list">
+        <tr><td colspan="9" style="text-align:center;color:var(--tx2);padding:20px;">Chargement...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tab Users -->
+  <div class="tab-content" id="tab-users">
+    <div class="section-title">Utilisateurs</div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Club</th>
+          <th>Rôle</th>
+          <th>Créé le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users-list">
+        <tr><td colspan="7" style="text-align:center;color:var(--tx2);padding:20px;">Chargement...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tab Nouveau club -->
+  <div class="tab-content" id="tab-nouveau">
+    <div class="section-title">Créer un nouveau club</div>
+    <div style="background:var(--dk3);border:1px solid var(--bd);border-radius:10px;padding:20px;max-width:600px;">
+      <div class="form-grid">
+        <div class="fi"><label>Nom du club *</label><input id="n-nom" placeholder="Arena18 Padel Club"/></div>
+        <div class="fi"><label>Slug (identifiant) *</label><input id="n-slug" placeholder="arena18"/></div>
+        <div class="fi"><label>Email admin *</label><input id="n-email" type="email" placeholder="admin@club.fr"/></div>
+        <div class="fi"><label>Mot de passe *</label><input id="n-password" type="password" placeholder="••••••••"/></div>
+        <div class="fi"><label>Nom admin</label><input id="n-nom-admin" placeholder="Jean Dupont"/></div>
+        <div class="fi"><label>Nb terrains</label><input id="n-terrains" type="number" value="2" min="1" max="20"/></div>
+      </div>
+      <button class="btn btn-primary" onclick="creerClub()">✅ Créer le club</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal reset password -->
+<div class="modal-bg" id="modal-pwd">
+  <div class="modal">
+    <h3>🔐 Réinitialiser le mot de passe</h3>
+    <div class="fi" style="margin-bottom:12px;">
+      <label>Utilisateur</label>
+      <input id="pwd-user-label" disabled/>
+    </div>
+    <div class="fi">
+      <label>Nouveau mot de passe</label>
+      <input id="pwd-new" type="password" placeholder="••••••••"/>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('modal-pwd')">Annuler</button>
+      <button class="modal-btn primary" onclick="resetPassword()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentUserId = null;
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const names=['clubs','users','nouveau'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function showToast(msg, color='var(--gr)'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=color; t.style.display='block';
+  setTimeout(()=>t.style.display='none', 3000);
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── CHARGER CLUBS ──
+async function chargerClubs(){
+  const r = await fetch('/admin/clubs/liste');
+  const clubs = await r.json();
+  
+  let nbTournois = 0;
+  clubs.forEach(c => nbTournois += c.nb_tournois);
+  document.getElementById('stat-clubs').textContent = clubs.filter(c=>c.actif).length;
+  document.getElementById('stat-tournois').textContent = nbTournois;
+
+  const tbody = document.getElementById('clubs-list');
+  if(!clubs.length){ tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--tx2);padding:20px;">Aucun club</td></tr>'; return; }
+  
+  tbody.innerHTML = clubs.map(c=>`
+    <tr>
+      <td style="color:var(--tx2);">${c.id}</td>
+      <td><strong>${c.nom}</strong></td>
+      <td style="font-family:var(--mo);color:var(--tx2);">${c.slug}</td>
+      <td style="text-align:center;">${c.nb_terrains}</td>
+      <td style="text-align:center;">${c.nb_tournois}</td>
+      <td style="text-align:center;">${c.nb_users}</td>
+      <td><span class="badge ${c.actif?'badge-green':'badge-red'}">${c.actif?'Actif':'Inactif'}</span></td>
+      <td style="color:var(--tx2);font-size:11px;">${c.cree_le}</td>
+      <td>
+        <button class="btn-sm" onclick="toggleClub(${c.id},${c.actif?0:1})">${c.actif?'Désactiver':'Activer'}</button>
+        ${c.id>1?`<button class="btn-danger" style="margin-left:4px;" onclick="supprimerClub(${c.id},'${c.nom}')">🗑</button>`:''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleClub(id, actif){
+  const r = await fetch(`/admin/club/modifier/${id}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({actif})
+  });
+  if(r.ok){ showToast(actif?'Club activé':'Club désactivé'); chargerClubs(); }
+}
+
+async function supprimerClub(id, nom){
+  if(!confirm(`Supprimer le club "${nom}" ?\n\nToutes les données seront perdues.`)) return;
+  const r = await fetch(`/admin/club/supprimer/${id}`, {method:'DELETE'});
+  const d = await r.json();
+  if(r.ok){ showToast('Club supprimé'); chargerClubs(); }
+  else alert(d.error);
+}
+
+// ── CHARGER USERS ──
+async function chargerUsers(){
+  const r = await fetch('/admin/users/liste');
+  const users = await r.json();
+  document.getElementById('stat-users').textContent = users.length;
+
+  const tbody = document.getElementById('users-list');
+  if(!users.length){ tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--tx2);padding:20px;">Aucun utilisateur</td></tr>'; return; }
+
+  tbody.innerHTML = users.map(u=>`
+    <tr>
+      <td style="color:var(--tx2);">${u.id}</td>
+      <td><strong>${u.nom||'—'}</strong></td>
+      <td style="font-family:var(--mo);font-size:11px;">${u.email}</td>
+      <td>${u.club_nom}</td>
+      <td><span class="badge ${u.role==='superadmin'?'badge-blue':'badge-green'}">${u.role}</span></td>
+      <td style="color:var(--tx2);font-size:11px;">${u.cree_le}</td>
+      <td>
+        <button class="btn-sm" onclick="ouvrirResetPwd(${u.id},'${u.email}')">🔐 Mot de passe</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function ouvrirResetPwd(id, email){
+  currentUserId = id;
+  document.getElementById('pwd-user-label').value = email;
+  document.getElementById('pwd-new').value = '';
+  document.getElementById('modal-pwd').classList.add('open');
+}
+
+async function resetPassword(){
+  const pwd = document.getElementById('pwd-new').value;
+  if(!pwd || pwd.length < 6){ alert('Mot de passe trop court (min 6 caractères)'); return; }
+  const r = await fetch('/admin/user/reset-password', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({user_id: currentUserId, password: pwd})
+  });
+  if(r.ok){ showToast('Mot de passe modifié'); closeModal('modal-pwd'); }
+}
+
+// ── CRÉER CLUB ──
+async function creerClub(){
+  const nom = document.getElementById('n-nom').value.trim();
+  const slug = document.getElementById('n-slug').value.trim().toLowerCase().replace(/\s+/g,'-');
+  const email = document.getElementById('n-email').value.trim();
+  const password = document.getElementById('n-password').value;
+  const nomAdmin = document.getElementById('n-nom-admin').value.trim();
+  const terrains = parseInt(document.getElementById('n-terrains').value);
+
+  if(!nom||!slug||!email||!password){ alert('Remplis tous les champs obligatoires (*)'); return; }
+
+  const r = await fetch('/admin/club/creer', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({nom, slug, email, password, nom: nomAdmin, nb_terrains: terrains})
+  });
+  const d = await r.json();
+  if(r.ok){
+    showToast(`✅ Club "${nom}" créé !`);
+    ['n-nom','n-slug','n-email','n-password','n-nom-admin'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('n-terrains').value='2';
+    chargerClubs(); chargerUsers();
+    showTab('clubs');
+  } else {
+    alert(d.error || 'Erreur lors de la création');
+  }
+}
+
+// Auto-slug depuis le nom
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('n-nom').addEventListener('input', e=>{
+    const slug = e.target.value.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    document.getElementById('n-slug').value = slug;
+  });
+  chargerClubs();
+  chargerUsers();
+});
+</script>
+</body>
+</html>
