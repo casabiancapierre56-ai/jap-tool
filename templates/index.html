@@ -1275,7 +1275,7 @@ function toggleTheme(){
   if(root.classList.contains('light')){root.classList.remove('light');btn.textContent='☀️ Mode clair';localStorage.setItem('theme','dark');}
   else{root.classList.add('light');btn.textContent='🌙 Mode sombre';localStorage.setItem('theme','light');}
 }
-if(localStorage.getItem('theme'!=='dark''){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
+if(localStorage.getItem('theme')!=='dark'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
 loadTwilio();
 restaurerSession();
 
