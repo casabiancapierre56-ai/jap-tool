@@ -18,6 +18,15 @@ from reportlab.lib import colors
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'jap-tool-secret-2026-arena18')
 
+# ── AUTH ─────────────────────────────────────────────────────────────────
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'club_id' not in session:
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated
+
 # ── SQLite ───────────────────────────────
 DB_PATH = os.environ.get('TOURNOIS_DB', os.path.join(os.path.dirname(__file__), 'tournois.db'))
 
@@ -685,15 +694,6 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         'format8paires': True,
     })
 
-
-# ── AUTH ─────────────────────────────────────────────────────────────────
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'club_id' not in session:
-            return redirect(url_for('login_page'))
-        return f(*args, **kwargs)
-    return decorated
 
 # ── Routes Flask ─────────────────────────
 @app.route('/')
