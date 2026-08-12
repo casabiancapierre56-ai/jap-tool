@@ -184,8 +184,8 @@ tr:hover td{background:var(--dk3);}
 </div>
 <div class="wrap">
   <div class="side">
-    <!-- ⚙ TOURNOI -->
-    <div class="stl">① Infos du tournoi</div>
+    <!-- ⚙ TOURNOI --><div id="step1" style="display:block;">
+    <div class="stl" onclick="toggleStep(1)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">① Infos du tournoi<span id="chev1">▾</span></div>
     <div class="fi"><label>Niveau</label>
       <select id="niveau" onchange="onNiveauChange()">
         <option value="P25">P25</option><option value="P100">P100</option>
@@ -210,8 +210,8 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    <!-- 📂 CSV -->
-    <div class="stl">② Importer le CSV</div>
+    </div><!-- 📂 CSV --><div id="step2" style="display:block;">
+    <div class="stl" onclick="toggleStep(2)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">② Importer le CSV<span id="chev2">▾</span></div>
     <div class="dz" id="dz">
       <input type="file" accept=".csv,.txt" id="fi-csv" onchange="loadFile(this.files[0])"/>
       <div class="dz-icon">📋</div>
@@ -222,8 +222,8 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    <!-- ⏰ CONTRAINTES -->
-    <div class="stl">③ Contraintes horaires (optionnel)
+    </div><!-- ⏰ CONTRAINTES --><div id="step3" style="display:none;">
+    <div class="stl" onclick="toggleStep(3)" style="cursor:pointer;">③ Contraintes horaires (optionnel) <span id="chev3">▸</span>
       <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
     </div>
     <div class="dz-sub" style="margin-bottom:8px;color:var(--tx2);">Paire indisponible avant une certaine heure</div>
@@ -240,16 +240,16 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    <!-- 📄 DOCUMENTS PDF -->
-    <div class="stl">④ Documents à imprimer</div>
+    </div><!-- 📄 DOCUMENTS PDF --><div id="step4" style="display:none;">
+    <div class="stl" onclick="toggleStep(4)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">④ Documents à imprimer<span id="chev4">▸</span></div>
     <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
     <button class="btn btn2" id="b-accueil" onclick="ouvrirAccueil()" disabled style="border-color:#3498db;color:#3498db;">📋 Feuille accueil caisse</button>
 
     <div class="div"></div>
 
-    <!-- 💾 SAUVEGARDES -->
-    <div class="stl">⑤ Sauvegarder le tournoi</div>
+    </div><!-- 💾 SAUVEGARDES --><div id="step5" style="display:none;">
+    <div class="stl" onclick="toggleStep(5)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑤ Sauvegarder le tournoi<span id="chev5">▸</span></div>
     <div class="row2">
       <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 CSV</button>
       <button class="btn btn2" id="b-db" onclick="sauvegarderEnBase()" disabled style="border-color:var(--or);color:var(--or);">🗄️ Base</button>
@@ -257,8 +257,8 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    <!-- 📱 ENVOI SMS / WHATSAPP -->
-    <div class="stl">⑥ Envoyer les convocations</div><button type="button" onclick="document.getElementById('tw-box').style.display=document.getElementById('tw-box').style.display==='block'?'none':'block';" style="background:none;border:none;color:var(--tx2);font-size:10px;font-family:var(--mo);cursor:pointer;text-decoration:underline;padding:0;margin-bottom:6px;">⚙️ Config. Twilio (SID / Token)</button>
+    </div><!-- 📱 ENVOI SMS / WHATSAPP --><div id="step6" style="display:none;">
+    <div class="stl" onclick="toggleStep(6)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑥ Envoyer les convocations<span id="chev6">▸</span></div><button type="button" onclick="document.getElementById('tw-box').style.display=document.getElementById('tw-box').style.display==='block'?'none':'block';" style="background:none;border:none;color:var(--tx2);font-size:10px;font-family:var(--mo);cursor:pointer;text-decoration:underline;padding:0;margin-bottom:6px;">⚙️ Config. Twilio (SID / Token)</button>
     <div class="tw-box" id="tw-box" style="display:none;padding:10px;margin-bottom:6px;">
       <div class="fi" style="margin-bottom:6px;"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
       <div class="fi" style="margin-bottom:6px;"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
@@ -270,7 +270,7 @@ tr:hover td{background:var(--dk3);}
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
-    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsAppAuto()" disabled style="border-color:#25D366;color:#25D366;background:#0a1f0a;">📲 Envoyer tous les WhatsApp</button>
+    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsAppAuto()" disabled style="border-color:#25D366;color:#25D366;background:#0a1f0a;">📲 Envoyer tous les WhatsApp</button></div>
     <div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;text-align:center;">Envoi automatique via Arena18 (+33671327427)</div>
     <div id="wa-box" style="display:none;margin-top:6px;">
       <!-- WhatsApp Business API — à venir -->
@@ -440,7 +440,7 @@ tr:hover td{background:var(--dk3);}
 
 <script>
 let csvText='', genData=null, pairesLoaded=[];
-let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}afficherUserChip();
+let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}function toggleStep(n){var el=document.getElementById('step'+n);var c=document.getElementById('chev'+n);if(!el)return;var open=el.style.display!=='none';el.style.display=open?'none':'block';if(c)c.textContent=open?'▸':'▾';}afficherUserChip();
 
 function st(n){
   ['tt','th','tm','tc','ts2','tf'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
