@@ -1551,52 +1551,6 @@ function envoyerTousWhatsApp(){
 // ══════════════════════════════════════
 // ONGLET CONVOCATIONS
 // ══════════════════════════════════════
-let _msgGeneral='';
-
-// Compile toutes les convocations/horaires en UN SEUL message texte
-// (a copier-coller dans MOJA ou par mail, envoi groupe unique a tous les joueurs)
-function buildMessageGeneral(convos){
-  const nomTournoi = document.getElementById('nt').value;
-  const dt         = document.getElementById('dt').value;
-  const dateStr    = dt ? new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
-  const formatJeu  = document.getElementById('fg').value;
-
-  const sorted = [...convos].sort((a,b)=>{
-    if(a.hConv!==b.hConv) return a.hConv.localeCompare(b.hConv);
-    return (a.matchNum||0)-(b.matchNum||0);
-  });
-
-  let txt = `ARENA18 – TOURNOI\n\n`
-    + `🏆 ${nomTournoi}\n`
-    + `📅 ${dateStr}\n`
-    + `🎾 Format • ${formatJeu}\n`
-    + `━━━━━━━━━━━━━━\n`
-    + `📋 CONVOCATIONS & HORAIRES — TOUTES LES PAIRES\n`
-    + `━━━━━━━━━━━━━━\n\n`;
-
-  sorted.forEach(c=>{
-    const tsStr    = c.ts ? ` (${c.ts})` : '';
-    const byeStr   = c.bye ? ' ✅ Exempt du 1er tour' : '';
-    const advStr   = c.adv ? `\n   🆚 Adversaires : ${c.adv}` : '';
-    txt += `⏰ Convocation ${c.hConv}h — ${c.paire}${tsStr}\n`
-         + `   🎾 M${c.matchNum} • Heure ${c.hJeu}h • Terrain ${c.terrain}${byeStr}${advStr}\n\n`;
-  });
-
-  txt += `━━━━━━━━━━━━━━\n`
-    + `Toute l'équipe ARENA18 vous souhaite un excellent tournoi.\n`
-    + `💚 PLAY HARD. ENJOY MORE.\n`
-    + `ARENA18 PADEL CLUB 🎾`;
-
-  return txt;
-}
-
-function copyMessageGeneral(){
-  navigator.clipboard.writeText(_msgGeneral).then(()=>{
-    const btn=document.getElementById('copy-general-btn');
-    if(btn){const orig=btn.textContent;btn.textContent='✅ Copié !';setTimeout(()=>btn.textContent=orig,2000);}
-  });
-}
-
 function renConvocations(d){
   if(!d||!d.paires) return;
 
@@ -1639,16 +1593,7 @@ function renConvocations(d){
   const nbBye = convos.filter(c=>c.bye).length;
   const heures = [...new Set(convos.map(c=>c.hConv))].sort();
 
-  _msgGeneral = buildMessageGeneral(convos);
-
-  let h = `<div class="tw-box" style="margin-bottom:16px;border-color:var(--or);">
-    <div class="stl" style="margin-bottom:8px;">📢 Message groupé — toutes les convocations & horaires</div>
-    <div class="dz-sub" style="margin-bottom:8px;">À copier-coller dans MOJA (ou par mail) pour un envoi unique à tous les joueurs.</div>
-    <textarea readonly style="width:100%;min-height:220px;background:var(--dk2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:10px;font-family:var(--mo);font-size:11px;line-height:1.6;resize:vertical;">${_msgGeneral}</textarea>
-    <button class="btn" id="copy-general-btn" style="margin-top:8px;" onclick="copyMessageGeneral()">📋 Copier le message groupé</button>
-  </div>`;
-
-  h += `<div class="stl" style="margin-bottom:12px;">📋 Récap convocations — ${nbPaires} paires</div>`;
+  let h = `<div class="stl" style="margin-bottom:12px;">📋 Récap convocations — ${nbPaires} paires</div>`;
 
   // Stats résumé
   h += `<div class="conv-summary">
