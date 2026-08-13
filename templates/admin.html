@@ -166,8 +166,8 @@ body{font-family:'Helvetica Neue',sans-serif;background:var(--bg);color:var(--tx
     <div class="section-title">Créer un nouveau club</div>
     <div style="background:var(--dk3);border:1px solid var(--bd);border-radius:10px;padding:20px;max-width:600px;">
       <div class="form-grid">
-        <div class="fi"><label>Nom du club *</label><input id="n-nom" placeholder="Arena18 Padel Club"/></div>
-        <div class="fi"><label>Slug (identifiant) *</label><input id="n-slug" placeholder="arena18"/></div>
+        <div class="fi"><label>Nom du club *</label><input id="n-nom" placeholder="Arena18 Padel Club" oninput="majSlugAuto()"/></div>
+        <div class="fi" id="slug-auto"><label>Identifiant club</label><div style="font-size:13px;padding:8px 0;color:var(--tx);"><b id="slug-preview" style="color:var(--or);">—</b> · <a href="#" onclick="document.getElementById('slug-manuel').style.display='flex';document.getElementById('slug-auto').style.display='none';return false;" style="color:var(--tx2);font-size:11px;text-decoration:underline;">modifier</a></div></div><div class="fi" id="slug-manuel" style="display:none;"><label>Slug (identifiant) *</label><input id="n-slug" placeholder="arena18"/></div>
         <div class="fi"><label>Email admin *</label><input id="n-email" type="email" placeholder="admin@club.fr"/></div>
         <div class="fi"><label>Mot de passe *</label><input id="n-password" type="password" placeholder="••••••••"/></div>
         <div class="fi"><label>Nom admin</label><input id="n-nom-admin" placeholder="Jean Dupont"/></div>
@@ -308,7 +308,7 @@ async function resetPassword(){
 }
 
 // ── CRÉER CLUB ──
-async function creerClub(){
+function majSlugAuto(){const nom=document.getElementById('n-nom').value.trim();const slug=nom.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');document.getElementById('n-slug').value=slug;var p=document.getElementById('slug-preview');if(p)p.textContent=slug||'—';}async function creerClub(){
   const nom = document.getElementById('n-nom').value.trim();
   const slug = document.getElementById('n-slug').value.trim().toLowerCase().replace(/\s+/g,'-');
   const email = document.getElementById('n-email').value.trim();
