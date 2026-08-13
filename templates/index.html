@@ -17,7 +17,7 @@ body{background:var(--dk);color:var(--tx);font-family:var(--sa);min-height:100vh
 #sb{font-size:11px;color:var(--tx2);margin-left:auto;font-family:var(--mo);}
 .wrap{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 51px);}
 .side{background:var(--dk2);border-right:1px solid var(--bd);padding:18px;overflow-y:auto;}
-.stl{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--or);margin-bottom:9px;font-family:var(--mo);}
+.stl{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--or);margin-bottom:9px;font-family:var(--mo);}.step-dot{flex:1;min-width:30px;padding:6px 4px;border-radius:6px;border:1px solid var(--bd);background:var(--dk3);color:var(--tx2);font-family:var(--mo);font-size:13px;cursor:pointer;text-align:center;transition:all .2s;}.step-dot:hover{border-color:var(--or);}.step-dot.active{background:var(--or);border-color:var(--or);color:#fff;font-weight:700;}
 .fi{margin-bottom:10px;}
 .fi label{display:block;font-size:11px;color:var(--tx2);margin-bottom:4px;font-family:var(--mo);}
 .fi input,.fi select{width:100%;background:var(--dk3);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--mo);font-size:12px;outline:none;transition:border-color .2s;}
@@ -183,7 +183,7 @@ tr:hover td{background:var(--dk3);}
     <a href="/logout" id="logout-btn" style="margin-left:10px;background:var(--dk3);border:1px solid #8a2020;color:#e74c3c;padding:5px 12px;border-radius:20px;font-family:var(--mo);font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap;">Deconnexion</a>
 </div>
 <div class="wrap">
-  <div class="side">
+  <div class="side"><div id="stepper" style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;"><button onclick="toggleStep(1)" class="step-dot" id="dot1">①</button><button onclick="toggleStep(2)" class="step-dot" id="dot2">②</button><button onclick="toggleStep(3)" class="step-dot" id="dot3">③</button><button onclick="toggleStep(4)" class="step-dot" id="dot4">④</button><button onclick="toggleStep(5)" class="step-dot" id="dot5">⑤</button><button onclick="toggleStep(6)" class="step-dot" id="dot6">⑥</button></div>
     <!-- ⚙ TOURNOI --><div id="step1" style="display:block;">
     <div class="stl" onclick="toggleStep(1)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">① Infos du tournoi<span id="chev1">▾</span></div>
     <div class="fi"><label>Niveau</label>
@@ -210,7 +210,7 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    </div><!-- 📂 CSV --><div id="step2" style="display:block;">
+    <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(2)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📂 CSV --><div id="step2" style="display:none;">
     <div class="stl" onclick="toggleStep(2)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">② Importer le CSV<span id="chev2">▾</span></div>
     <div class="dz" id="dz">
       <input type="file" accept=".csv,.txt" id="fi-csv" onchange="loadFile(this.files[0])"/>
@@ -222,7 +222,7 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    </div><!-- ⏰ CONTRAINTES --><div id="step3" style="display:none;">
+    <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(1)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(3)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- ⏰ CONTRAINTES --><div id="step3" style="display:none;">
     <div class="stl" onclick="toggleStep(3)" style="cursor:pointer;">③ Contraintes horaires (optionnel) <span id="chev3">▸</span>
       <button class="btn-add" onclick="ajouterContrainte()" style="margin-left:8px;">+ Ajouter</button>
     </div>
@@ -240,7 +240,7 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    </div><!-- 📄 DOCUMENTS PDF --><div id="step4" style="display:none;">
+    <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(2)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(4)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📄 DOCUMENTS PDF --><div id="step4" style="display:none;">
     <div class="stl" onclick="toggleStep(4)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">④ Documents à imprimer<span id="chev4">▸</span></div>
     <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
@@ -248,7 +248,7 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    </div><!-- 💾 SAUVEGARDES --><div id="step5" style="display:none;">
+    <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(3)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(5)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 💾 SAUVEGARDES --><div id="step5" style="display:none;">
     <div class="stl" onclick="toggleStep(5)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑤ Sauvegarder le tournoi<span id="chev5">▸</span></div>
     <div class="row2">
       <button class="btn btn2" id="b-csv" onclick="sauvegarderCSV()" disabled style="border-color:#1a5080;color:#60b0ff;">💾 CSV</button>
@@ -257,7 +257,7 @@ tr:hover td{background:var(--dk3);}
 
     <div class="div"></div>
 
-    </div><!-- 📱 ENVOI SMS / WHATSAPP --><div id="step6" style="display:none;">
+    <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(4)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(6)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📱 ENVOI SMS / WHATSAPP --><div id="step6" style="display:none;">
     <div class="stl" onclick="toggleStep(6)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑥ Envoyer les convocations<span id="chev6">▸</span></div><button type="button" onclick="document.getElementById('tw-box').style.display=document.getElementById('tw-box').style.display==='block'?'none':'block';" style="background:none;border:none;color:var(--tx2);font-size:10px;font-family:var(--mo);cursor:pointer;text-decoration:underline;padding:0;margin-bottom:6px;">⚙️ Config. Twilio (SID / Token)</button>
     <div class="tw-box" id="tw-box" style="display:none;padding:10px;margin-bottom:6px;">
       <div class="fi" style="margin-bottom:6px;"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
@@ -270,7 +270,7 @@ tr:hover td{background:var(--dk3);}
       <button class="btn" onclick="envoyerSMS()">📤 Envoyer tous les SMS</button>
       <div class="sms-res" id="sms-res" style="display:none"></div>
     </div>
-    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsAppAuto()" disabled style="border-color:#25D366;color:#25D366;background:#0a1f0a;">📲 Envoyer tous les WhatsApp</button></div>
+    <button class="btn btn2" id="b-wa" onclick="envoyerTousWhatsAppAuto()" disabled style="border-color:#25D366;color:#25D366;background:#0a1f0a;">📲 Envoyer tous les WhatsApp</button><div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(5)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(1)" class="btn" style="flex:1;width:auto;margin-top:0;background:var(--gr);">✓ Retour à l'étape 1</button></div></div>
     <div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;text-align:center;">Envoi automatique via Arena18 (+33671327427)</div>
     <div id="wa-box" style="display:none;margin-top:6px;">
       <!-- WhatsApp Business API — à venir -->
@@ -440,7 +440,7 @@ tr:hover td{background:var(--dk3);}
 
 <script>
 let csvText='', genData=null, pairesLoaded=[];
-let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}function toggleStep(n){var el=document.getElementById('step'+n);var c=document.getElementById('chev'+n);if(!el)return;var open=el.style.display!=='none';el.style.display=open?'none':'block';if(c)c.textContent=open?'▸':'▾';}afficherUserChip();
+let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}function toggleStep(n){for(var i=1;i<=6;i++){var el=document.getElementById('step'+i);var dot=document.getElementById('dot'+i);if(el)el.style.display=(i===n?'block':'none');if(dot)dot.classList.toggle('active',i===n);}}toggleStep(1);afficherUserChip();
 
 function st(n){
   ['tt','th','tm','tc','ts2','tf'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
