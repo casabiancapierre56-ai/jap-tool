@@ -1280,12 +1280,23 @@ def calc_debut_phase2(planning, heure_debut, duree_match):
 def build_phase2_poules(poules, nb_qualifies, next_num):
     nb_poules = len(poules)
     entrants = []
-    for tier in range(nb_qualifies):
-        rang = tier + 1
-        ordre = range(nb_poules) if tier % 2 == 0 else range(nb_poules - 1, -1, -1)
-        for idx in ordre:
-            lettre = chr(65 + idx)
-            entrants.append({'placeholder': f"{ordinal_fr(rang)} Poule {lettre}"})
+    if nb_qualifies >= 2:
+        shift = max(1, nb_poules // 2)
+        for i in range(nb_poules):
+            lettre_a = chr(65 + i)
+            entrants.append({'placeholder': f"1er Poule {lettre_a}"})
+            j = (i + shift) % nb_poules
+            lettre_b = chr(65 + j)
+            entrants.append({'placeholder': f"2eme Poule {lettre_b}"})
+        for tier in range(2, nb_qualifies):
+            rang = tier + 1
+            for i in range(nb_poules):
+                lettre = chr(65 + i)
+                entrants.append({'placeholder': f"{ordinal_fr(rang)} Poule {lettre}"})
+    else:
+        for i in range(nb_poules):
+            lettre = chr(65 + i)
+            entrants.append({'placeholder': f"1er Poule {lettre}"})
     n = len(entrants)
     size = 1
     while size < n:
