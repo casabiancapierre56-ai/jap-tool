@@ -211,6 +211,7 @@ tr:hover td{background:var(--dk3);}
       <select id="fmt-mode" onchange="onFmtModeChange()">
         <option value="fft" selected>Tableau à élimination directe (FFT)</option>
         <option value="poules">Poules (round-robin)</option>
+        <option value="bracket">Tableau à élimination directe (toutes tailles)</option>
       </select>
     </div>
     <div class="fi" id="nbp-block" style="display:none"><label>Nombre de poules</label><input type="number" id="nbp" value="2" min="1" max="20"/></div>
@@ -251,6 +252,7 @@ tr:hover td{background:var(--dk3);}
     <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
     <button class="btn btn2" id="b-fdr-poules" onclick="dlPdfPoules()" disabled style="margin-bottom:3px;display:none;border-color:#25D366;color:#25D366;">📄 Feuille de route (poules)</button>
+    <button class="btn btn2" id="b-fdr-bracket" onclick="dlPdfBracket()" disabled style="margin-bottom:3px;display:none;border-color:#3498db;color:#3498db;">🏆 Tableau (toutes tailles)</button>
     <button class="btn btn2" id="b-accueil" onclick="ouvrirAccueil()" disabled style="border-color:#3498db;color:#3498db;">📋 Feuille accueil caisse</button>
 
     <div class="div"></div>
@@ -552,7 +554,7 @@ function onFmtModeChange(){
 
 function lancerGeneration(){
   const mode=document.getElementById('fmt-mode').value;
-  if(mode==='poules'){ genererPoules(); } else { generer(); }
+  if(mode==='poules'){ genererPoules(); } else if(mode==='bracket'){ genererBracket(); } else { generer(); }
 }
 
 let poulesData=null;
@@ -609,6 +611,68 @@ async function dlPdfPoules(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url; a.download='feuille_route_poules.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e){ alert('Erreur PDF : '+e.message); }
+  finally { btn.disabled=false; btn.textContent=orig; }
+}
+
+let bracketData=null;
+async function genererBracket(){
+  if(!csvText){alert('Charge le CSV d\'abord !');return;}
+  const btn=document.getElementById('bg');
+  btn.disabled=true; btn.textContent='⏳ Génération...';
+  try {
+    const dt=document.getElementById('dt').value;
+    const dateStr=dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
+    const r=await fetch('/generer-bracket',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        csv:csvText,
+        nomTournoi:document.getElementById('nt').value,
+        dateStr,
+        heureDebut:document.getElementById('hd').value,
+        nbPistes:parseInt(document.getElementById('np').value),
+        dureeMatch:parseInt(document.getElementById('dp').value),
+      })
+    });
+    const data=await r.json();
+    if(data.error){alert(data.error);return;}
+    bracketData=data;
+    renBracket(data);
+    document.getElementById('b-fdr-bracket').disabled=false;
+    document.getElementById('b-fdr-bracket').style.display='block';
+    document.getElementById('sb').textContent=`${data.nbPaires} paires · ${new Date().toLocaleTimeString('fr-FR')}`;
+  } catch(e){ alert('Erreur : '+e.message); }
+  finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
+}
+
+function lblBracket(p){
+  if(!p) return '?';
+  if(p.placeholder) return p.placeholder;
+  return `${p.ts||''} ${p.nc}`.trim();
+}
+function renBracket(d){
+  let h='';
+  d.rounds.forEach(tour=>{
+    h+=`<div class="stl" style="margin-bottom:8px;">${tour.nomTour}</div>`;
+    h+='<div class="tw" style="margin-bottom:18px;"><table><tr><th>Horaire</th><th>Terrain</th><th>Match</th></tr>';
+    tour.matchs.forEach(m=>{ h+=`<tr><td style="font-family:var(--mo);">${m.heure}</td><td>T${m.terrain}</td><td>${lblBracket(m.pA)} <span style="color:var(--or);">vs</span> ${lblBracket(m.pB)}</td></tr>`; });
+    (tour.byes||[]).forEach(b=>{ h+=`<tr><td>—</td><td>—</td><td>${lblBracket(b.pair)} <span style="font-size:10px;color:var(--gr);">EXEMPT (qualifié direct)</span></td></tr>`; });
+    h+='</table></div>';
+  });
+  document.getElementById('tt').innerHTML=h;
+}
+
+async function dlPdfBracket(){
+  if(!bracketData)return;
+  const btn=document.getElementById('b-fdr-bracket');
+  const orig=btn.textContent; btn.disabled=true; btn.textContent='⏳ PDF...';
+  try {
+    const r=await fetch('/pdf/bracket-generique',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bracketData)});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||'Erreur '+r.status);}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='tableau_bracket.pdf'; a.click();
     URL.revokeObjectURL(url);
   } catch(e){ alert('Erreur PDF : '+e.message); }
   finally { btn.disabled=false; btn.textContent=orig; }
