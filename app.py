@@ -1262,8 +1262,6 @@ def generer():
     })
 
 # ══════════════════════════════════════════
-@app.route('/generer-poules', methods=['POST'])
-@login_required
 def ordinal_fr(n):
     return "1er" if n == 1 else f"{n}eme"
 
@@ -1325,6 +1323,8 @@ def calc_planning_poules_phase2(rounds_phase2, classement_matches, t_debut, nb_p
     planning_classement = {'nomTour': 'Matchs de classement', 'matchs': items, 'byes': []}
     return planning_phase2, planning_classement
 
+@app.route('/generer-poules', methods=['POST'])
+@login_required
 def generer_poules_route():
     data = request.get_json()
     csv_text = data['csv']
@@ -1405,7 +1405,7 @@ def pdf_poules():
             ('FONTNAME', (0,1), (0,-1), 'Helvetica-Bold'),
         ]))
         story.append(tbl)
-for tour in data.get('phase2', []):
+    for tour in data.get('phase2', []):
         story.append(Paragraph(tour['nomTour'], styles['Heading2']))
         rows = [['Horaire', 'Terrain', 'Match']]
         for m in tour['matchs']:
