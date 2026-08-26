@@ -237,6 +237,79 @@ def calc_planning_poules(poules, heure_debut, duree_match):
                 k += 1
         planning.append({'terrain': ti + 1, 'poule': poule, 'matchs': matchs})
     return planning
+# ── Bracket generique (elimination directe, taille libre) ──
+def seed_positions(size):
+    if size == 1:
+        return [1]
+    prev = seed_positions(size // 2)
+    result = []
+    for s in prev:
+        result.append(s)
+        result.append(size + 1 - s)
+    return result
+
+def build_bracket_generique(paires):
+    n = len(paires)
+    size = 1
+    while size < n:
+        size *= 2
+    positions = seed_positions(size)
+    slot_paires = []
+    for seed in positions:
+        if seed <= n:
+            slot_paires.append(paires[seed - 1])
+        else:
+            slot_paires.append(None)
+    rounds = []
+    entrants = slot_paires
+    match_num = 0
+    while len(entrants) > 1:
+        matches = []
+        next_entrants = []
+        for i in range(0, len(entrants), 2):
+            a = entrants[i]
+            b = entrants[i + 1] if i + 1 < len(entrants) else None
+            if a is None and b is None:
+                next_entrants.append(None)
+                continue
+            if a is None:
+                matches.append({'type': 'bye', 'pair': b})
+                next_entrants.append(b)
+                continue
+            if b is None:
+                matches.append({'type': 'bye', 'pair': a})
+                next_entrants.append(a)
+                continue
+            match_num += 1
+            matches.append({'type': 'match', 'num': match_num, 'pA': a, 'pB': b})
+            next_entrants.append({'placeholder': f'Vainqueur M{match_num}'})
+        rounds.append(matches)
+        entrants = next_entrants
+    return rounds
+
+def nom_tour(nb_items):
+    noms = {1: 'Finale', 2: 'Demi-finales', 4: 'Quarts de finale',
+            8: 'Huitièmes de finale', 16: 'Seizièmes de finale', 32: 'Trente-deuxièmes de finale'}
+    return noms.get(nb_items, f'Tour ({nb_items} matchs)')
+
+def calc_planning_bracket(rounds, heure_debut, nb_pistes, duree_match):
+    planning = []
+    t_cur = heure_debut
+    for rnd in rounds:
+        vrais = [m for m in rnd if m['type'] == 'match']
+        byes = [m for m in rnd if m['type'] == 'bye']
+        items = []
+        for idx, m in enumerate(vrais):
+            wave = idx // nb_pistes
+            terrain = idx % nb_pistes + 1
+            heure = add_min(t_cur, wave * duree_match)
+            items.append({**m, 'heure': heure, 'terrain': terrain})
+        planning.append({'nomTour': nom_tour(len(rnd)), 'matchs': items, 'byes': byes})
+        if vrais:
+            waves = -(-len(vrais) // nb_pistes)
+            t_cur = add_min(t_cur, waves * duree_match)
+    return planning
+
 
 # ── Construction tableau FFT ─────────────
 def build_tableau(paires, contraintes=None):
@@ -1206,6 +1279,80 @@ def pdf_poules():
     doc.build(story)
     packet.seek(0)
     return send_file(packet, mimetype='application/pdf', as_attachment=True, download_name='feuille_route_poules.pdf')
+@app.route('/generer-bracket', methods=['POST'])
+@login_required
+def generer_bracket_route():
+    data = request.get_json()
+    csv_text = data['csv']
+    heure_debut = data.get('heureDebut', '09:00')
+    nb_pistes = int(data.get('nbPistes', 2))
+    duree_match = int(data.get('dureeMatch', 45))
+    nom_tournoi = data.get('nomTournoi', 'Tournoi')
+    date_str = data.get('dateStr', '')
+    try:
+        paires = parse_csv(csv_text)
+    except Exception as e:
+        return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
+    if len(paires) < 4:
+        return jsonify({'error': f'Minimum 4 paires requises ({len(paires)} trouvees)'}), 400
+    rounds = build_bracket_generique(paires)
+    planning = calc_planning_bracket(rounds, heure_debut, nb_pistes, duree_match)
+    def ser_p(p):
+        if p is None:
+            return None
+        if isinstance(p, dict) and 'placeholder' in p:
+            return {'placeholder': p['placeholder']}
+        return {'id': p['id'], 'ts': p.get('ts'), 'nc': p['nc']}
+    resultat = []
+    for tour in planning:
+        resultat.append({
+            'nomTour': tour['nomTour'],
+            'matchs': [{'num': m['num'], 'heure': m['heure'], 'terrain': m['terrain'],
+                        'pA': ser_p(m['pA']), 'pB': ser_p(m['pB'])} for m in tour['matchs']],
+            'byes': [{'pair': ser_p(m['pair'])} for m in tour['byes']]
+        })
+    return jsonify({
+        'nomTournoi': nom_tournoi, 'dateStr': date_str, 'nbPaires': len(paires),
+        'nbPistes': nb_pistes, 'dureeMatch': duree_match, 'heureDebut': heure_debut,
+        'rounds': resultat
+    })
+
+@app.route('/pdf/bracket-generique', methods=['POST'])
+@login_required
+def pdf_bracket_generique():
+    data = request.get_json()
+    packet = io.BytesIO()
+    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(packet, pagesize=A4, topMargin=15*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+    story = [Paragraph(f"{data.get('nomTournoi','Tournoi')} — Tableau à élimination directe", styles['Title'])]
+    story.append(Paragraph(f"{data.get('dateStr','')} · {data.get('nbPaires','')} paires · {data.get('dureeMatch',45)} min / match", styles['Normal']))
+    def lbl(p):
+        if p is None:
+            return '?'
+        if 'placeholder' in p:
+            return p['placeholder']
+        return f"{p.get('ts') or ''} {p['nc']}".strip()
+    for tour in data.get('rounds', []):
+        story.append(Paragraph(tour['nomTour'], styles['Heading2']))
+        rows = [['Horaire', 'Terrain', 'Match']]
+        for m in tour['matchs']:
+            rows.append([m['heure'], f"T{m['terrain']}", f"{lbl(m['pA'])}  vs  {lbl(m['pB'])}"])
+        for b in tour.get('byes', []):
+            nom = lbl(b['pair'])
+            rows.append(['—', '—', f'{nom} — EXEMPT (qualifié direct)'])
+        tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        story.append(tbl)
+    doc.build(story)
+    packet.seek(0)
+    return send_file(packet, mimetype='application/pdf', as_attachment=True, download_name='tableau_bracket.pdf')
 
 # ROUTES TOURNOIS (SQLite)
 # ══════════════════════════════════════════
