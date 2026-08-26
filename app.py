@@ -248,6 +248,41 @@ def seed_positions(size):
         result.append(size + 1 - s)
     return result
 
+def build_bracket_from_entrants(entrants, num_start=1):
+    n = len(entrants)
+    if n < 2:
+        return [], num_start
+    size = 1
+    while size < n:
+        size *= 2
+    slots = entrants + [None] * (size - n)
+    rounds = []
+    cur = slots
+    match_num = num_start
+    while len(cur) > 1:
+        matches = []
+        next_cur = []
+        for i in range(0, len(cur), 2):
+            a = cur[i]
+            b = cur[i + 1] if i + 1 < len(cur) else None
+            if a is None and b is None:
+                next_cur.append(None)
+                continue
+            if a is None:
+                matches.append({'type': 'bye', 'pair': b})
+                next_cur.append(b)
+                continue
+            if b is None:
+                matches.append({'type': 'bye', 'pair': a})
+                next_cur.append(a)
+                continue
+            matches.append({'type': 'match', 'num': match_num, 'pA': a, 'pB': b})
+            next_cur.append({'placeholder': f'Vainqueur M{match_num}'})
+            match_num += 1
+        rounds.append(matches)
+        cur = next_cur
+    return rounds, match_num
+
 def build_bracket_generique(paires):
     n = len(paires)
     size = 1
@@ -260,41 +295,35 @@ def build_bracket_generique(paires):
             slot_paires.append(paires[seed - 1])
         else:
             slot_paires.append(None)
-    rounds = []
-    entrants = slot_paires
-    match_num = 0
-    while len(entrants) > 1:
-        matches = []
-        next_entrants = []
-        for i in range(0, len(entrants), 2):
-            a = entrants[i]
-            b = entrants[i + 1] if i + 1 < len(entrants) else None
-            if a is None and b is None:
-                next_entrants.append(None)
-                continue
-            if a is None:
-                matches.append({'type': 'bye', 'pair': b})
-                next_entrants.append(b)
-                continue
-            if b is None:
-                matches.append({'type': 'bye', 'pair': a})
-                next_entrants.append(a)
-                continue
-            match_num += 1
-            matches.append({'type': 'match', 'num': match_num, 'pA': a, 'pB': b})
-            next_entrants.append({'placeholder': f'Vainqueur M{match_num}'})
-        rounds.append(matches)
-        entrants = next_entrants
-    return rounds
+    rounds, next_num = build_bracket_from_entrants(slot_paires, 1)
+    return rounds, next_num
+
+def build_consolante_et_classement(rounds_principal, next_num):
+    # Consolante (perdants du 1er tour) + matchs de classement pour garantir 3 matchs mini (regle FFT)
+    if not rounds_principal:
+        return [], [], next_num
+    round1_losers = [{'placeholder': f"Perdant M{m['num']}"} for m in rounds_principal[0] if m['type'] == 'match']
+    rounds_conso, next_num = build_bracket_from_entrants(round1_losers, next_num)
+    classement_pool = []
+    if len(rounds_principal) > 1:
+        classement_pool += [{'placeholder': f"Perdant M{m['num']}"} for m in rounds_principal[1] if m['type'] == 'match']
+    if rounds_conso:
+        classement_pool += [{'placeholder': f"Perdant M{m['num']}"} for m in rounds_conso[0] if m['type'] == 'match']
+    classement_matches = []
+    for i in range(0, len(classement_pool) - 1, 2):
+        classement_matches.append({'type': 'match', 'num': next_num, 'pA': classement_pool[i], 'pB': classement_pool[i + 1]})
+        next_num += 1
+    return rounds_conso, classement_matches, next_num
+
+
 
 def nom_tour(nb_items):
     noms = {1: 'Finale', 2: 'Demi-finales', 4: 'Quarts de finale',
             8: 'Huitièmes de finale', 16: 'Seizièmes de finale', 32: 'Trente-deuxièmes de finale'}
     return noms.get(nb_items, f'Tour ({nb_items} matchs)')
 
-def calc_planning_bracket(rounds, heure_debut, nb_pistes, duree_match):
+def planifier_rounds(rounds, t_cur, nb_pistes, duree_match, prefix=''):
     planning = []
-    t_cur = heure_debut
     for rnd in rounds:
         vrais = [m for m in rnd if m['type'] == 'match']
         byes = [m for m in rnd if m['type'] == 'bye']
@@ -304,11 +333,25 @@ def calc_planning_bracket(rounds, heure_debut, nb_pistes, duree_match):
             terrain = idx % nb_pistes + 1
             heure = add_min(t_cur, wave * duree_match)
             items.append({**m, 'heure': heure, 'terrain': terrain})
-        planning.append({'nomTour': nom_tour(len(rnd)), 'matchs': items, 'byes': byes})
+        planning.append({'nomTour': prefix + nom_tour(len(rnd)), 'matchs': items, 'byes': byes})
         if vrais:
             waves = -(-len(vrais) // nb_pistes)
             t_cur = add_min(t_cur, waves * duree_match)
-    return planning
+    return planning, t_cur
+
+def calc_planning_bracket(rounds_principal, rounds_conso, classement_matches, heure_debut, nb_pistes, duree_match):
+    planning_principal, t_cur = planifier_rounds(rounds_principal, heure_debut, nb_pistes, duree_match)
+    planning_conso, t_cur = planifier_rounds(rounds_conso, t_cur, nb_pistes, duree_match, prefix='Consolante — ')
+    items = []
+    for idx, m in enumerate(classement_matches):
+        wave = idx // nb_pistes
+        terrain = idx % nb_pistes + 1
+        heure = add_min(t_cur, wave * duree_match)
+        items.append({**m, 'heure': heure, 'terrain': terrain})
+    planning_classement = {'nomTour': 'Matchs de classement', 'matchs': items, 'byes': []}
+    return planning_principal, planning_conso, planning_classement
+
+
 
 
 # ── Construction tableau FFT ─────────────
@@ -1295,26 +1338,30 @@ def generer_bracket_route():
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
     if len(paires) < 4:
         return jsonify({'error': f'Minimum 4 paires requises ({len(paires)} trouvees)'}), 400
-    rounds = build_bracket_generique(paires)
-    planning = calc_planning_bracket(rounds, heure_debut, nb_pistes, duree_match)
+    rounds_principal, next_num = build_bracket_generique(paires)
+    rounds_conso, classement_matches, next_num = build_consolante_et_classement(rounds_principal, next_num)
+    planning_principal, planning_conso, planning_classement = calc_planning_bracket(
+        rounds_principal, rounds_conso, classement_matches, heure_debut, nb_pistes, duree_match)
     def ser_p(p):
         if p is None:
             return None
         if isinstance(p, dict) and 'placeholder' in p:
             return {'placeholder': p['placeholder']}
         return {'id': p['id'], 'ts': p.get('ts'), 'nc': p['nc']}
-    resultat = []
-    for tour in planning:
-        resultat.append({
+    def ser_tour(tour):
+        return {
             'nomTour': tour['nomTour'],
             'matchs': [{'num': m['num'], 'heure': m['heure'], 'terrain': m['terrain'],
                         'pA': ser_p(m['pA']), 'pB': ser_p(m['pB'])} for m in tour['matchs']],
             'byes': [{'pair': ser_p(m['pair'])} for m in tour['byes']]
-        })
+        }
+    resultat = [ser_tour(t) for t in planning_principal]
+    resultat_conso = [ser_tour(t) for t in planning_conso]
+    resultat_classement = ser_tour(planning_classement)
     return jsonify({
         'nomTournoi': nom_tournoi, 'dateStr': date_str, 'nbPaires': len(paires),
         'nbPistes': nb_pistes, 'dureeMatch': duree_match, 'heureDebut': heure_debut,
-        'rounds': resultat
+        'rounds': resultat, 'consolante': resultat_conso, 'classement': resultat_classement
     })
 
 @app.route('/pdf/bracket-generique', methods=['POST'])
@@ -1340,6 +1387,40 @@ def pdf_bracket_generique():
         for b in tour.get('byes', []):
             nom = lbl(b['pair'])
             rows.append(['—', '—', f'{nom} — EXEMPT (qualifié direct)'])
+        tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        story.append(tbl)
+    for tour in data.get('consolante', []):
+        story.append(Paragraph(tour['nomTour'], styles['Heading2']))
+        rows = [['Horaire', 'Terrain', 'Match']]
+        for m in tour['matchs']:
+            rows.append([m['heure'], f"T{m['terrain']}", f"{lbl(m['pA'])}  vs  {lbl(m['pB'])}"])
+        for b in tour.get('byes', []):
+            nom = lbl(b['pair'])
+            rows.append(['—', '—', f'{nom} — EXEMPT (qualifié direct)'])
+        tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        story.append(tbl)
+    classement = data.get('classement')
+    if classement and classement.get('matchs'):
+        story.append(Paragraph(classement['nomTour'], styles['Heading2']))
+        rows = [['Horaire', 'Terrain', 'Match']]
+        for m in classement['matchs']:
+            rows.append([m['heure'], f"T{m['terrain']}", f"{lbl(m['pA'])}  vs  {lbl(m['pB'])}"])
         tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
         tbl.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
