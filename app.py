@@ -14,6 +14,9 @@ from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'jap-tool-secret-2026-arena18')
@@ -197,6 +200,43 @@ def parse_csv(text):
         p['nf']  = p['prenJ1'] + ' ' + p['nomJ1'] + ' / ' + p['prenJ2'] + ' ' + p['nomJ2']
         p['ts']  = 'TS' + str(i+1) if i < 8 else None
     return paires
+
+# ── Construction des poules (round-robin) ──
+def build_poules(paires, nb_poules):
+    """Répartit les paires en poules en serpentin (TS1,TS2 séparés, etc.)."""
+    poules = [[] for _ in range(nb_poules)]
+    for i, p in enumerate(paires):
+        tour = i // nb_poules
+        idx = i % nb_poules
+        if tour % 2 == 1:
+            idx = nb_poules - 1 - idx
+        poules[idx].append(p)
+    return poules
+
+def planning_poule(n):
+    """Retourne les rounds (methode du cercle) pour une poule de n equipes (indices 0..n-1)."""
+    ne = n if n % 2 == 0 else n + 1
+    rounds = []
+    for r in range(ne - 1):
+        paires_r = [(ne - 1, r)]
+        for i in range(1, ne // 2):
+            paires_r.append(((r + i) % (ne - 1), (r - i) % (ne - 1)))
+        rounds.append([(a, b) for (a, b) in paires_r if a < n and b < n])
+    return rounds
+
+def calc_planning_poules(poules, heure_debut, duree_match):
+    """Calcule le planning sequentiel (1 terrain par poule) a partir de l'heure de debut."""
+    planning = []
+    for ti, poule in enumerate(poules):
+        rounds = planning_poule(len(poule))
+        matchs = []
+        k = 0
+        for rnd in rounds:
+            for (ia, ib) in rnd:
+                matchs.append({'heure': add_min(heure_debut, k * duree_match), 'pA': poule[ia], 'pB': poule[ib]})
+                k += 1
+        planning.append({'terrain': ti + 1, 'poule': poule, 'matchs': matchs})
+    return planning
 
 # ── Construction tableau FFT ─────────────
 def build_tableau(paires, contraintes=None):
@@ -1106,6 +1146,67 @@ def generer():
     })
 
 # ══════════════════════════════════════════
+@app.route('/generer-poules', methods=['POST'])
+@login_required
+def generer_poules_route():
+    data = request.get_json()
+    csv_text = data['csv']
+    heure_debut = data.get('heureDebut', '09:00')
+    nb_poules = int(data.get('nbPoules', 2))
+    duree_match = int(data.get('dureeMatch', 30))
+    nom_tournoi = data.get('nomTournoi', 'Tournoi')
+    date_str = data.get('dateStr', '')
+    try:
+        paires = parse_csv(csv_text)
+    except Exception as e:
+        return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
+    if len(paires) < nb_poules * 3:
+        return jsonify({'error': f'Pas assez de paires pour {nb_poules} poules (minimum 3 par poule)'}), 400
+    poules = build_poules(paires, nb_poules)
+    planning = calc_planning_poules(poules, heure_debut, duree_match)
+    resultat = []
+    for t in planning:
+        resultat.append({
+            'terrain': t['terrain'],
+            'poule': [{'id': p['id'], 'ts': p['ts'], 'nc': p['nc'], 'nf': p['nf']} for p in t['poule']],
+            'matchs': [{'heure': m['heure'], 'idA': m['pA']['id'], 'ncA': m['pA']['nc'], 'tsA': m['pA']['ts'],
+                        'idB': m['pB']['id'], 'ncB': m['pB']['nc'], 'tsB': m['pB']['ts']} for m in t['matchs']]
+        })
+    return jsonify({
+        'nomTournoi': nom_tournoi, 'dateStr': date_str, 'nbPoules': nb_poules,
+        'dureeMatch': duree_match, 'heureDebut': heure_debut, 'planning': resultat
+    })
+
+@app.route('/pdf/poules', methods=['POST'])
+@login_required
+def pdf_poules():
+    data = request.get_json()
+    packet = io.BytesIO()
+    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(packet, pagesize=A4, topMargin=15*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+    story = [Paragraph(f"{data.get('nomTournoi','Tournoi')} — Feuille de route (poules)", styles['Title'])]
+    story.append(Paragraph(f"{data.get('dateStr','')} · Format poules · {data.get('dureeMatch',30)} min / match", styles['Normal']))
+    for t in data.get('planning', []):
+        pool_label = ' / '.join(p.get('nc','') for p in t.get('poule', []))
+        story.append(Paragraph(f"Terrain {t['terrain']} — Poule : {pool_label}", styles['Heading2']))
+        rows = [['Horaire', 'Match']]
+        for m in t.get('matchs', []):
+            rows.append([m['heure'], f"{m.get('tsA') or ''} {m['ncA']}  vs  {m.get('tsB') or ''} {m['ncB']}"])
+        tbl = Table(rows, colWidths=[35*mm, 145*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+            ('FONTNAME', (0,1), (0,-1), 'Helvetica-Bold'),
+        ]))
+        story.append(tbl)
+    doc.build(story)
+    packet.seek(0)
+    return send_file(packet, mimetype='application/pdf', as_attachment=True, download_name='feuille_route_poules.pdf')
+
 # ROUTES TOURNOIS (SQLite)
 # ══════════════════════════════════════════
 
