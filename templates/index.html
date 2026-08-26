@@ -207,7 +207,13 @@ tr:hover td{background:var(--dk3);}
     <div class="fi"><label>Durée classement (min)</label><input type="number" id="dc" value="45" min="15"/></div>
     <div class="fi"><label>Format — Tableau principal</label><select id="fg"></select><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;">Répartition des paires dans le tableau</div></div>
     <div class="fi"><label>Format — Classement</label><select id="fg-cls"></select><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;">Type de classement final à générer</div></div>
-
+    <div class="fi"><label>Mode de génération</label>
+      <select id="fmt-mode" onchange="onFmtModeChange()">
+        <option value="fft" selected>Tableau à élimination directe (FFT)</option>
+        <option value="poules">Poules (round-robin)</option>
+      </select>
+    </div>
+    <div class="fi" id="nbp-block" style="display:none"><label>Nombre de poules</label><input type="number" id="nbp" value="2" min="1" max="20"/></div>
     <div class="div"></div>
 
     <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(2)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📂 CSV --><div id="step2" style="display:none;">
@@ -232,7 +238,7 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <!-- ⚡ ACTIONS PRINCIPALES -->
-    <button class="btn" id="bg" onclick="generer()" disabled>⚡ Générer le tableau</button>
+    <button class="btn" id="bg" onclick="lancerGeneration()" disabled>⚡ Générer le tableau</button>
     <div class="row2" style="margin-top:5px;">
       <button class="btn btn2" id="b-new" onclick="nouveauTournoi()" style="border-color:#9b59b6;color:#9b59b6;">🆕 Nouveau</button>
       <button class="btn btn2" id="b-ajout" onclick="ouvrirAjoutPaire()" disabled style="border-color:var(--gr);color:var(--gr);">➕ Paire</button>
@@ -244,6 +250,7 @@ tr:hover td{background:var(--dk3);}
     <div class="stl" onclick="toggleStep(4)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">④ Documents à imprimer<span id="chev4">▸</span></div>
     <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
+    <button class="btn btn2" id="b-fdr-poules" onclick="dlPdfPoules()" disabled style="margin-bottom:3px;display:none;border-color:#25D366;color:#25D366;">📄 Feuille de route (poules)</button>
     <button class="btn btn2" id="b-accueil" onclick="ouvrirAccueil()" disabled style="border-color:#3498db;color:#3498db;">📋 Feuille accueil caisse</button>
 
     <div class="div"></div>
@@ -537,6 +544,75 @@ const dz=document.getElementById('dz');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f){document.getElementById('fi-csv').files=e.dataTransfer.files;loadFile(f);}});
+
+function onFmtModeChange(){
+  const mode=document.getElementById('fmt-mode').value;
+  document.getElementById('nbp-block').style.display=mode==='poules'?'block':'none';
+}
+
+function lancerGeneration(){
+  const mode=document.getElementById('fmt-mode').value;
+  if(mode==='poules'){ genererPoules(); } else { generer(); }
+}
+
+let poulesData=null;
+async function genererPoules(){
+  if(!csvText){alert('Charge le CSV d\'abord !');return;}
+  const btn=document.getElementById('bg');
+  btn.disabled=true; btn.textContent='⏳ Génération...';
+  try {
+    const dt=document.getElementById('dt').value;
+    const dateStr=dt?new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
+    const r=await fetch('/generer-poules',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        csv:csvText,
+        nomTournoi:document.getElementById('nt').value,
+        dateStr,
+        heureDebut:document.getElementById('hd').value,
+        nbPoules:parseInt(document.getElementById('nbp').value),
+        dureeMatch:parseInt(document.getElementById('dp').value),
+      })
+    });
+    const data=await r.json();
+    if(data.error){alert(data.error);return;}
+    poulesData=data;
+    renPoules(data);
+    document.getElementById('b-fdr-poules').disabled=false;
+    document.getElementById('b-fdr-poules').style.display='block';
+    document.getElementById('sb').textContent=`${data.nbPoules} poules · ${new Date().toLocaleTimeString('fr-FR')}`;
+  } catch(e){ alert('Erreur : '+e.message); }
+  finally { btn.disabled=false; btn.textContent='⚡ Générer le tableau'; }
+}
+
+function renPoules(d){
+  let h='';
+  d.planning.forEach(t=>{
+    h+=`<div class="stl" style="margin-bottom:8px;">Terrain ${t.terrain} — Poule (${t.poule.length} paires)</div>`;
+    h+='<div class="tw" style="margin-bottom:6px;"><table><tr><th>TS</th><th>Paire</th></tr>';
+    t.poule.forEach(p=>{ h+=`<tr><td>${p.ts||'—'}</td><td>${p.nc}</td></tr>`; });
+    h+='</table></div>';
+    h+='<div class="tw" style="margin-bottom:18px;"><table><tr><th>Horaire</th><th>Match</th></tr>';
+    t.matchs.forEach(m=>{ h+=`<tr><td style="font-family:var(--mo);">${m.heure}</td><td>${m.tsA||''} ${m.ncA} <span style="color:var(--or);">vs</span> ${m.tsB||''} ${m.ncB}</td></tr>`; });
+    h+='</table></div>';
+  });
+  document.getElementById('tt').innerHTML=h;
+}
+
+async function dlPdfPoules(){
+  if(!poulesData)return;
+  const btn=document.getElementById('b-fdr-poules');
+  const orig=btn.textContent; btn.disabled=true; btn.textContent='⏳ PDF...';
+  try {
+    const r=await fetch('/pdf/poules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(poulesData)});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||'Erreur '+r.status);}
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='feuille_route_poules.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e){ alert('Erreur PDF : '+e.message); }
+  finally { btn.disabled=false; btn.textContent=orig; }
+}
 
 async function generer(){
   if(!csvText){alert('Charge le CSV d\'abord !');return;}
