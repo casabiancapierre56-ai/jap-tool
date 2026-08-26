@@ -1264,12 +1264,75 @@ def generer():
 # ══════════════════════════════════════════
 @app.route('/generer-poules', methods=['POST'])
 @login_required
+def ordinal_fr(n):
+    return "1er" if n == 1 else f"{n}eme"
+
+def calc_debut_phase2(planning, heure_debut, duree_match):
+    max_fin = None
+    for t in planning:
+        for m in t['matchs']:
+            h, mn = map(int, m['heure'].split(':'))
+            fin = h * 60 + mn + duree_match
+            if max_fin is None or fin > max_fin:
+                max_fin = fin
+    if max_fin is None:
+        return heure_debut
+    return f"{max_fin // 60:02d}:{max_fin % 60:02d}"
+
+def build_phase2_poules(poules, nb_qualifies, next_num):
+    nb_poules = len(poules)
+    entrants = []
+    for tier in range(nb_qualifies):
+        rang = tier + 1
+        ordre = range(nb_poules) if tier % 2 == 0 else range(nb_poules - 1, -1, -1)
+        for idx in ordre:
+            lettre = chr(65 + idx)
+            entrants.append({'placeholder': f"{ordinal_fr(rang)} Poule {lettre}"})
+    n = len(entrants)
+    size = 1
+    while size < n:
+        size *= 2
+    positions = seed_positions(size)
+    slot_entrants = []
+    for seed in positions:
+        if seed <= n:
+            slot_entrants.append(entrants[seed - 1])
+        else:
+            slot_entrants.append(None)
+    rounds_phase2, next_num = build_bracket_from_entrants(slot_entrants, next_num)
+    return rounds_phase2, next_num
+
+def build_classement_poules(poules, nb_qualifies, next_num):
+    classement_pool = []
+    for idx, poule in enumerate(poules):
+        if len(poule) == 3:
+            lettre = chr(65 + idx)
+            classement_pool.append({'placeholder': f"3eme Poule {lettre}"})
+    classement_matches = []
+    for i in range(0, len(classement_pool) - 1, 2):
+        classement_matches.append({'type': 'match', 'num': next_num, 'pA': classement_pool[i], 'pB': classement_pool[i + 1]})
+        next_num += 1
+    return classement_matches, next_num
+
+def calc_planning_poules_phase2(rounds_phase2, classement_matches, t_debut, nb_pistes, duree_match):
+    planning_phase2, t_cur = planifier_rounds(rounds_phase2, t_debut, nb_pistes, duree_match, prefix='Phase 2 - ')
+    items = []
+    for idx, m in enumerate(classement_matches):
+        wave = idx // nb_pistes
+        terrain = idx % nb_pistes + 1
+        heure = add_min(t_cur, wave * duree_match)
+        items.append({**m, 'heure': heure, 'terrain': terrain})
+    planning_classement = {'nomTour': 'Matchs de classement', 'matchs': items, 'byes': []}
+    return planning_phase2, planning_classement
+
 def generer_poules_route():
     data = request.get_json()
     csv_text = data['csv']
     heure_debut = data.get('heureDebut', '09:00')
     nb_poules = int(data.get('nbPoules', 2))
     duree_match = int(data.get('dureeMatch', 30))
+    nb_qualifies = int(data.get('nbQualifies', 2))
+    nb_pistes_phase2 = int(data.get('nbPistesPhase2', nb_poules))
     nom_tournoi = data.get('nomTournoi', 'Tournoi')
     date_str = data.get('dateStr', '')
     try:
@@ -1279,7 +1342,14 @@ def generer_poules_route():
     if len(paires) < nb_poules * 3:
         return jsonify({'error': f'Pas assez de paires pour {nb_poules} poules (minimum 3 par poule)'}), 400
     poules = build_poules(paires, nb_poules)
+    taille_min = min(len(p) for p in poules)
+    if nb_qualifies < 1 or nb_qualifies > taille_min:
+        return jsonify({'error': f'Nombre de qualifies invalide (max {taille_min} par poule)'}), 400
     planning = calc_planning_poules(poules, heure_debut, duree_match)
+    t_debut_phase2 = calc_debut_phase2(planning, heure_debut, duree_match)
+    rounds_phase2, next_num = build_phase2_poules(poules, nb_qualifies, 1)
+    classement_matches, next_num = build_classement_poules(poules, nb_qualifies, next_num)
+    planning_phase2, planning_classement = calc_planning_poules_phase2(rounds_phase2, classement_matches, t_debut_phase2, nb_pistes_phase2, duree_match)
     resultat = []
     for t in planning:
         resultat.append({
@@ -1288,9 +1358,25 @@ def generer_poules_route():
             'matchs': [{'heure': m['heure'], 'idA': m['pA']['id'], 'ncA': m['pA']['nc'], 'tsA': m['pA']['ts'],
                         'idB': m['pB']['id'], 'ncB': m['pB']['nc'], 'tsB': m['pB']['ts']} for m in t['matchs']]
         })
+    def ser_p(p):
+        if p is None:
+            return None
+        if isinstance(p, dict) and 'placeholder' in p:
+            return {'placeholder': p['placeholder']}
+        return {'id': p['id'], 'ts': p.get('ts'), 'nc': p['nc']}
+    def ser_tour(tour):
+        return {
+            'nomTour': tour['nomTour'],
+            'matchs': [{'num': m['num'], 'heure': m['heure'], 'terrain': m['terrain'],
+                        'pA': ser_p(m['pA']), 'pB': ser_p(m['pB'])} for m in tour['matchs']],
+            'byes': [{'pair': ser_p(m['pair'])} for m in tour['byes']]
+        }
+    resultat_phase2 = [ser_tour(t) for t in planning_phase2]
+    resultat_classement = ser_tour(planning_classement)
     return jsonify({
         'nomTournoi': nom_tournoi, 'dateStr': date_str, 'nbPoules': nb_poules,
-        'dureeMatch': duree_match, 'heureDebut': heure_debut, 'planning': resultat
+        'dureeMatch': duree_match, 'heureDebut': heure_debut, 'nbQualifies': nb_qualifies,
+        'planning': resultat, 'phase2': resultat_phase2, 'classement': resultat_classement
     })
 
 @app.route('/pdf/poules', methods=['POST'])
@@ -1319,7 +1405,41 @@ def pdf_poules():
             ('FONTNAME', (0,1), (0,-1), 'Helvetica-Bold'),
         ]))
         story.append(tbl)
-    doc.build(story)
+for tour in data.get('phase2', []):
+        story.append(Paragraph(tour['nomTour'], styles['Heading2']))
+        rows = [['Horaire', 'Terrain', 'Match']]
+        for m in tour['matchs']:
+            rows.append([m['heure'], f"T{m['terrain']}", f"{lbl(m['pA'])}  vs  {lbl(m['pB'])}"])
+        for b in tour.get('byes', []):
+            nom = lbl(b['pair'])
+            rows.append(['-', '-', f'{nom} - EXEMPT (qualifie direct)'])
+        tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        story.append(tbl)
+    classement = data.get('classement')
+    if classement and classement.get('matchs'):
+        story.append(Paragraph(classement['nomTour'], styles['Heading2']))
+        rows = [['Horaire', 'Terrain', 'Match']]
+        for m in classement['matchs']:
+            rows.append([m['heure'], f"T{m['terrain']}", f"{lbl(m['pA'])}  vs  {lbl(m['pB'])}"])
+        tbl = Table(rows, colWidths=[25*mm, 20*mm, 135*mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a1a1a')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
+        ]))
+        story.append(tbl)
+        doc.build(story)
     packet.seek(0)
     return send_file(packet, mimetype='application/pdf', as_attachment=True, download_name='feuille_route_poules.pdf')
 @app.route('/generer-bracket', methods=['POST'])
