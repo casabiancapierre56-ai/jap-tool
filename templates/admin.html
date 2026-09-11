@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="csrf-token" content="{{ csrf_token }}"/>
 <title>JAP Tool — Administration</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -200,6 +201,17 @@ body{font-family:'Helvetica Neue',sans-serif;background:var(--bg);color:var(--tx
 <div class="toast" id="toast"></div>
 
 <script>
+const csrfToken=document.querySelector('meta[name="csrf-token"]').content;
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,init={})=>{
+  const method=(init.method||'GET').toUpperCase();
+  const rawUrl=typeof input==='string'?input:input.url;
+  const sameOrigin=new URL(rawUrl,window.location.href).origin===window.location.origin;
+  if(sameOrigin&&!['GET','HEAD','OPTIONS'].includes(method)){
+    init={...init,headers:{...(init.headers||{}),'X-CSRF-Token':csrfToken}};
+  }
+  return nativeFetch(input,init);
+};
 let currentUserId = null;
 
 function showTab(name){
@@ -320,7 +332,7 @@ function majSlugAuto(){const nom=document.getElementById('n-nom').value.trim();c
 
   const r = await fetch('/admin/club/creer', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({nom, slug, email, password, nom: nomAdmin, nb_terrains: terrains})
+    body: JSON.stringify({nom, slug, email, password, admin_nom: nomAdmin, nb_terrains: terrains})
   });
   const d = await r.json();
   if(r.ok){

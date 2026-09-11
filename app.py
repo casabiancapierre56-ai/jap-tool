@@ -6,10 +6,11 @@ Arena18 — jap.myconvi.fr
 from flask import Flask, request, jsonify, render_template, send_file, session, redirect, url_for
 import re
 import time
-import io, json, base64, random, os, sqlite3
+import io, json, base64, random, os, sqlite3, secrets, hmac, logging
 from datetime import datetime
 from functools import wraps
 import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -19,16 +20,72 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'jap-tool-secret-2026-arena18')
+configured_secret = os.environ.get('SECRET_KEY')
+if not configured_secret:
+    if os.environ.get('APP_ENV', '').lower() == 'production':
+        raise RuntimeError('SECRET_KEY doit etre definie en production')
+    configured_secret = secrets.token_urlsafe(48)
+    logging.getLogger(__name__).warning(
+        'SECRET_KEY absente : une cle temporaire est utilisee pour cette execution.'
+    )
+
+app.secret_key = configured_secret
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true',
+    SESSION_COOKIE_SAMESITE='Lax',
+    MAX_CONTENT_LENGTH=5 * 1024 * 1024,
+)
 
 # ── AUTH ─────────────────────────────────────────────────────────────────
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'club_id' not in session:
+            if request.path != '/' and not request.path.startswith('/admin'):
+                return jsonify({'error': 'Authentification requise'}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
     return decorated
+
+def get_csrf_token():
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+@app.before_request
+def protect_unsafe_requests():
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        return None
+    if request.endpoint in {'login', 'sms_reponse'}:
+        return None
+    if 'club_id' not in session:
+        return jsonify({'error': 'Authentification requise'}), 401
+    provided = request.headers.get('X-CSRF-Token', '')
+    expected = session.get('_csrf_token', '')
+    if not expected or not hmac.compare_digest(provided, expected):
+        return jsonify({'error': 'Requete de securite invalide. Recharge la page.'}), 403
+    return None
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'same-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    return response
+
+def verify_password(stored_hash, password):
+    """Verifie le format actuel et permet une migration progressive du SHA-256 historique."""
+    if re.fullmatch(r'[0-9a-f]{64}', stored_hash or ''):
+        legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+        return hmac.compare_digest(stored_hash, legacy_hash), True
+    try:
+        return check_password_hash(stored_hash, password), False
+    except (ValueError, TypeError):
+        return False, False
 
 # ── SQLite ───────────────────────────────
 DB_PATH = os.environ.get('TOURNOIS_DB', os.path.join(os.path.dirname(__file__), 'tournois.db'))
@@ -37,6 +94,18 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def get_twilio_config(club_id):
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT twilio_sid, twilio_token, twilio_num FROM clubs WHERE id=?',
+            (club_id,)
+        ).fetchone()
+    return {
+        'sid': (row['twilio_sid'] if row and row['twilio_sid'] else os.environ.get('TWILIO_SID', '')),
+        'token': (row['twilio_token'] if row and row['twilio_token'] else os.environ.get('TWILIO_TOKEN', '')),
+        'number': (row['twilio_num'] if row and row['twilio_num'] else os.environ.get('TWILIO_FROM', '')),
+    }
 
 def init_db():
     with get_db() as conn:
@@ -88,6 +157,14 @@ def init_db():
                 FOREIGN KEY (club_id) REFERENCES clubs(id)
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                attempt_key  TEXT PRIMARY KEY,
+                failures     INTEGER NOT NULL DEFAULT 0,
+                last_attempt INTEGER NOT NULL,
+                locked_until INTEGER NOT NULL DEFAULT 0
+            )
+        ''')
         # Ajouter club_id aux tables existantes si pas déjà fait
         try:
             conn.execute('ALTER TABLE tournois ADD COLUMN club_id INTEGER DEFAULT 1')
@@ -97,7 +174,8 @@ def init_db():
         except: pass
         conn.commit()
 
-        # Créer le club Arena18 par défaut si pas encore fait
+        # Creer le club principal si necessaire. Aucun mot de passe par defaut
+        # n'est conserve dans le code : le compte initial passe par l'environnement.
         existing = conn.execute('SELECT id FROM clubs WHERE slug=?', ('arena18',)).fetchone()
         if not existing:
             now = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -107,14 +185,54 @@ def init_db():
             )
             conn.commit()
             club = conn.execute('SELECT id FROM clubs WHERE slug=?', ('arena18',)).fetchone()
-            pwd_hash = hashlib.sha256('arena18admin2026'.encode()).hexdigest()
-            conn.execute(
-                'INSERT INTO users (club_id, email, password, nom, role, cree_le) VALUES (?,?,?,?,?,?)',
-                (club['id'], 'contact@arena18.fr', pwd_hash, 'Pierre Casabianca', 'superadmin', now)
-            )
-            conn.commit()
+            bootstrap_email = os.environ.get('BOOTSTRAP_ADMIN_EMAIL', '').strip().lower()
+            bootstrap_password = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD', '')
+            if bootstrap_email and bootstrap_password:
+                conn.execute(
+                    'INSERT INTO users (club_id, email, password, nom, role, cree_le) VALUES (?,?,?,?,?,?)',
+                    (club['id'], bootstrap_email, generate_password_hash(bootstrap_password),
+                     os.environ.get('BOOTSTRAP_ADMIN_NAME', 'Administrateur'), 'superadmin', now)
+                )
+                conn.commit()
 
 init_db()
+
+def login_attempt_key(email):
+    remote = request.remote_addr or 'unknown'
+    if os.environ.get('TRUST_PROXY_HEADERS', 'false').lower() == 'true':
+        remote = request.headers.get('X-Forwarded-For', remote).split(',')[0].strip()
+    return hashlib.sha256(f'{email}|{remote}'.encode()).hexdigest()
+
+def login_is_locked(attempt_key):
+    now = int(time.time())
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT locked_until FROM login_attempts WHERE attempt_key=?',
+            (attempt_key,)
+        ).fetchone()
+    return bool(row and row['locked_until'] > now)
+
+def record_login_failure(attempt_key):
+    now = int(time.time())
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT failures, last_attempt FROM login_attempts WHERE attempt_key=?',
+            (attempt_key,)
+        ).fetchone()
+        failures = 1 if not row or now - row['last_attempt'] > 900 else row['failures'] + 1
+        locked_until = now + 900 if failures >= 5 else 0
+        conn.execute(
+            'INSERT INTO login_attempts (attempt_key, failures, last_attempt, locked_until) VALUES (?,?,?,?) '
+            'ON CONFLICT(attempt_key) DO UPDATE SET failures=excluded.failures, '
+            'last_attempt=excluded.last_attempt, locked_until=excluded.locked_until',
+            (attempt_key, failures, now, locked_until)
+        )
+        conn.commit()
+
+def clear_login_failures(attempt_key):
+    with get_db() as conn:
+        conn.execute('DELETE FROM login_attempts WHERE attempt_key=?', (attempt_key,))
+        conn.commit()
 
 # ── PDF vierge FFT ───────────────────────
 PDF_B64_PATH = os.path.join(os.path.dirname(__file__), 'static', 'tableau16_b64.txt')
@@ -855,7 +973,7 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
 @app.route('/')
 @login_required
 def index():
-        return render_template('index.html')
+        return render_template('index.html', csrf_token=get_csrf_token())
 
 @app.route('/login', methods=['GET'])
 def login_page():
@@ -863,19 +981,31 @@ def login_page():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email = data.get('email','').strip().lower()
     password = data.get('password','')
-    pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+    attempt_key = login_attempt_key(email)
+    if login_is_locked(attempt_key):
+        return jsonify({'error': 'Trop de tentatives. Reessaie dans 15 minutes.'}), 429
     with get_db() as conn:
         user = conn.execute(
             'SELECT u.*, c.nom as club_nom, c.slug, c.nb_terrains, c.twilio_sid, c.twilio_token, c.twilio_num '
             'FROM users u JOIN clubs c ON u.club_id=c.id '
-            'WHERE u.email=? AND u.password=? AND c.actif=1',
-            (email, pwd_hash)
+            'WHERE lower(u.email)=? AND c.actif=1',
+            (email,)
         ).fetchone()
-    if not user:
+        password_ok, legacy_hash = verify_password(user['password'], password) if user else (False, False)
+        if user and password_ok and legacy_hash:
+            conn.execute(
+                'UPDATE users SET password=? WHERE id=?',
+                (generate_password_hash(password), user['id'])
+            )
+            conn.commit()
+    if not user or not password_ok:
+        record_login_failure(attempt_key)
         return jsonify({'error': 'Email ou mot de passe incorrect'}), 401
+    clear_login_failures(attempt_key)
+    session.clear()
     session['club_id']   = user['club_id']
     session['club_nom']  = user['club_nom']
     session['club_slug'] = user['slug']
@@ -883,6 +1013,7 @@ def login():
     session['user_nom']  = user['nom']
     session['user_role'] = user['role']
     session['nb_terrains'] = user['nb_terrains']
+    get_csrf_token()
     return jsonify({'ok': True, 'club': user['club_nom'], 'role': user['role']})
 
 @app.route('/logout')
@@ -894,12 +1025,16 @@ def logout():
 def get_session():
     if 'club_id' not in session:
         return jsonify({'logged': False}), 401
+    twilio = get_twilio_config(session['club_id'])
+    whatsapp_from = os.environ.get('TWILIO_WHATSAPP_FROM', twilio['number'])
     return jsonify({
         'logged': True,
         'club_id':   session['club_id'],
         'club_nom':  session['club_nom'],
         'user_nom':  session['user_nom'],
         'user_role': session['user_role'],
+        'sms_configured': bool(twilio['sid'] and twilio['token'] and twilio['number']),
+        'whatsapp_configured': bool(twilio['sid'] and twilio['token'] and whatsapp_from),
     })
 
 # ── ADMIN (superadmin seulement) ─────────────────────────────────────────
@@ -908,7 +1043,7 @@ def get_session():
 def admin_page():
     if session.get('user_role') != 'superadmin':
         return redirect(url_for('index'))
-    return render_template('admin.html')
+    return render_template('admin.html', csrf_token=get_csrf_token())
 
 @app.route('/admin/clubs/liste', methods=['GET'])
 def admin_liste_clubs():
@@ -916,7 +1051,7 @@ def admin_liste_clubs():
         return jsonify({'error': 'Non autorisé'}), 403
     with get_db() as conn:
         clubs = conn.execute('''
-            SELECT c.*, 
+            SELECT c.id, c.nom, c.slug, c.logo_url, c.nb_terrains, c.actif, c.cree_le,
                    COUNT(DISTINCT t.id) as nb_tournois,
                    COUNT(DISTINCT u.id) as nb_users
             FROM clubs c
@@ -971,7 +1106,7 @@ def admin_reset_password():
     if session.get('user_role') != 'superadmin':
         return jsonify({'error': 'Non autorisé'}), 403
     data = request.get_json()
-    pwd_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+    pwd_hash = generate_password_hash(data['password'])
     with get_db() as conn:
         conn.execute('UPDATE users SET password=? WHERE id=?', (pwd_hash, data['user_id']))
         conn.commit()
@@ -982,7 +1117,9 @@ def admin_clubs():
     if session.get('user_role') != 'superadmin':
         return jsonify({'error': 'Non autorisé'}), 403
     with get_db() as conn:
-        clubs = conn.execute('SELECT * FROM clubs ORDER BY cree_le DESC').fetchall()
+        clubs = conn.execute(
+            'SELECT id, nom, slug, logo_url, nb_terrains, actif, cree_le FROM clubs ORDER BY cree_le DESC'
+        ).fetchall()
     return jsonify([dict(c) for c in clubs])
 
 @app.route('/admin/club/creer', methods=['POST'])
@@ -998,10 +1135,10 @@ def admin_creer_club():
         )
         conn.commit()
         club = conn.execute('SELECT id FROM clubs WHERE slug=?', (data['slug'],)).fetchone()
-        pwd_hash = hashlib.sha256(data['password'].encode()).hexdigest()
+        pwd_hash = generate_password_hash(data['password'])
         conn.execute(
             'INSERT INTO users (club_id, email, password, nom, role, cree_le) VALUES (?,?,?,?,?,?)',
-            (club['id'], data['email'], pwd_hash, data.get('nom','Admin'), 'admin', now)
+            (club['id'], data['email'].strip().lower(), pwd_hash, data.get('admin_nom','Admin'), 'admin', now)
         )
         conn.commit()
     return jsonify({'ok': True})
@@ -1593,17 +1730,20 @@ def sauvegarder_tournoi():
     now = datetime.now().strftime('%d/%m/%Y %H:%M')
 
     with get_db() as conn:
+        club_id = session['club_id']
         if tournoi_id:
-            # Mise à jour tournoi existant par ID
-            conn.execute(
-                'UPDATE tournois SET nom=?, date_str=?, nb_paires=?, niveau=?, data_json=?, cree_le=? WHERE id=?',
-                (nom, date_str, nb_paires, niveau, payload, now, tournoi_id)
+            # Mise a jour uniquement si le tournoi appartient au club connecte.
+            cur = conn.execute(
+                'UPDATE tournois SET nom=?, date_str=?, nb_paires=?, niveau=?, data_json=?, cree_le=? '
+                'WHERE id=? AND club_id=?',
+                (nom, date_str, nb_paires, niveau, payload, now, tournoi_id, club_id)
             )
+            if cur.rowcount == 0:
+                return jsonify({'error': 'Tournoi introuvable'}), 404
             conn.commit()
             msg = f'Tournoi #{tournoi_id} mis à jour'
         else:
             # Vérifier doublon par nom + date
-            club_id = session.get('club_id', 1)
             existing = conn.execute(
                 'SELECT id FROM tournois WHERE nom=? AND date_str=? AND club_id=? ORDER BY id DESC LIMIT 1',
                 (nom, date_str, club_id)
@@ -1612,16 +1752,18 @@ def sauvegarder_tournoi():
                 # Mettre à jour le tournoi existant
                 tournoi_id = existing['id']
                 conn.execute(
-                    'UPDATE tournois SET nb_paires=?, niveau=?, data_json=?, cree_le=? WHERE id=?',
-                    (nb_paires, niveau, payload, now, tournoi_id)
+                    'UPDATE tournois SET nb_paires=?, niveau=?, data_json=?, cree_le=? '
+                    'WHERE id=? AND club_id=?',
+                    (nb_paires, niveau, payload, now, tournoi_id, club_id)
                 )
                 conn.commit()
                 msg = f'Tournoi #{tournoi_id} mis à jour (même nom/date)'
             else:
                 # Nouveau tournoi
                 cur = conn.execute(
-                    'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le) VALUES (?,?,?,?,?,?)',
-                    (nom, date_str, nb_paires, niveau, payload, now)
+                    'INSERT INTO tournois (nom, date_str, nb_paires, niveau, data_json, cree_le, club_id) '
+                    'VALUES (?,?,?,?,?,?,?)',
+                    (nom, date_str, nb_paires, niveau, payload, now, club_id)
                 )
                 conn.commit()
                 tournoi_id = cur.lastrowid
@@ -1631,11 +1773,14 @@ def sauvegarder_tournoi():
 
 
 @app.route('/tournoi/liste', methods=['GET'])
+@login_required
 def liste_tournois():
     """Retourne la liste de tous les tournois sauvegardés (sans le JSON complet)."""
     with get_db() as conn:
         rows = conn.execute(
-            'SELECT id, nom, date_str, nb_paires, niveau, cree_le FROM tournois ORDER BY id DESC'
+            'SELECT id, nom, date_str, nb_paires, niveau, cree_le FROM tournois '
+            'WHERE club_id=? ORDER BY id DESC',
+            (session['club_id'],)
         ).fetchall()
 
     tournois = [dict(r) for r in rows]
@@ -1643,10 +1788,14 @@ def liste_tournois():
 
 
 @app.route('/tournoi/charger/<int:tid>', methods=['GET'])
+@login_required
 def charger_tournoi(tid):
     """Retourne un tournoi complet par son ID."""
     with get_db() as conn:
-        row = conn.execute('SELECT * FROM tournois WHERE id=?', (tid,)).fetchone()
+        row = conn.execute(
+            'SELECT * FROM tournois WHERE id=? AND club_id=?',
+            (tid, session['club_id'])
+        ).fetchone()
 
     if not row:
         return jsonify({'error': 'Tournoi introuvable'}), 404
@@ -1658,10 +1807,16 @@ def charger_tournoi(tid):
 
 
 @app.route('/tournoi/supprimer/<int:tid>', methods=['DELETE'])
+@login_required
 def supprimer_tournoi(tid):
     """Supprime un tournoi de la base."""
     with get_db() as conn:
-        conn.execute('DELETE FROM tournois WHERE id=?', (tid,))
+        cur = conn.execute(
+            'DELETE FROM tournois WHERE id=? AND club_id=?',
+            (tid, session['club_id'])
+        )
+        if cur.rowcount == 0:
+            return jsonify({'error': 'Tournoi introuvable'}), 404
         conn.commit()
     return jsonify({'ok': True})
 
@@ -1850,10 +2005,14 @@ def liste_historique_sms():
 
 
 @app.route('/sms/historique/detail/<int:hid>', methods=['GET'])
+@login_required
 def detail_historique_sms(hid):
     """Retourne le détail d'un envoi SMS."""
     with get_db() as conn:
-        row = conn.execute('SELECT * FROM sms_history WHERE id=?', (hid,)).fetchone()
+        row = conn.execute(
+            'SELECT * FROM sms_history WHERE id=? AND club_id=?',
+            (hid, session['club_id'])
+        ).fetchone()
     if not row:
         return jsonify({'error': 'Introuvable'}), 404
     r = dict(row)
@@ -1866,7 +2025,12 @@ def detail_historique_sms(hid):
 def supprimer_historique_sms(hid):
     """Supprime une entrée de l'historique."""
     with get_db() as conn:
-        conn.execute('DELETE FROM sms_history WHERE id=?', (hid,))
+        cur = conn.execute(
+            'DELETE FROM sms_history WHERE id=? AND club_id=?',
+            (hid, session['club_id'])
+        )
+        if cur.rowcount == 0:
+            return jsonify({'error': 'Introuvable'}), 404
         conn.commit()
     return jsonify({'ok': True})
 
@@ -2045,9 +2209,9 @@ def pdf_accueil():
         return send_file(io.BytesIO(buf.read()), mimetype='application/pdf',
             as_attachment=True, download_name=nom_fichier)
 
-    except Exception as e:
-        import traceback
-        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
+    except Exception:
+        app.logger.exception('Echec de generation du PDF accueil')
+        return jsonify({'error': 'Impossible de generer le PDF accueil'}), 500
 
 
 @app.route('/whatsapp/envoyer', methods=['POST'])
@@ -2057,14 +2221,21 @@ def whatsapp_envoyer():
     try:
         data = request.get_json()
         messages  = data.get('messages', [])
-        sid       = data.get('sid', '')
-        token     = data.get('token', '')
-        template_sid = data.get('templateSid', 'HX6036f3a95c7559f4b45498c4e0178fa6')
-        from_num  = 'whatsapp:+33671327427'
+        twilio = get_twilio_config(session['club_id'])
+        sid = twilio['sid']
+        token = twilio['token']
+        template_sid = os.environ.get(
+            'TWILIO_WHATSAPP_TEMPLATE_SID',
+            data.get('templateSid', 'HX6036f3a95c7559f4b45498c4e0178fa6')
+        )
+        from_value = os.environ.get('TWILIO_WHATSAPP_FROM', twilio['number'])
+        from_num = from_value if from_value.startswith('whatsapp:') else f'whatsapp:{from_value}'
         nom_tournoi = data.get('nomTournoi', '')
 
         if not sid or not token:
-            return jsonify({'error': 'SID et Token Twilio requis'}), 400
+            return jsonify({'error': 'Messagerie Twilio non configuree pour ce club'}), 400
+        if not from_value:
+            return jsonify({'error': 'Numero Twilio non configure pour ce club'}), 400
 
         from twilio.rest import Client
         client = Client(sid, token)
@@ -2117,9 +2288,9 @@ def whatsapp_envoyer():
 
         return jsonify({'sent': sent, 'total': len(messages), 'results': results})
 
-    except Exception as e:
-        import traceback
-        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
+    except Exception:
+        app.logger.exception('Echec de l envoi WhatsApp')
+        return jsonify({'error': 'Impossible d envoyer les messages WhatsApp'}), 500
 
 @app.route('/pdf/tableau', methods=['POST'])
 @login_required
@@ -2149,18 +2320,19 @@ def pdf_feuille():
             data)
         return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
             as_attachment=True, download_name='feuille_route.pdf')
-    except Exception as e:
-        import traceback
-        return jsonify({'error': str(e), 'detail': traceback.format_exc()}), 500
+    except Exception:
+        app.logger.exception('Echec de generation de la feuille de route')
+        return jsonify({'error': 'Impossible de generer la feuille de route'}), 500
 
 @app.route('/sms/envoyer', methods=['POST'])
 @login_required
 def envoyer_sms():
     data = request.get_json()
     messages    = data['messages']
-    account_sid = data.get('twilioSid','')
-    auth_token  = data.get('twilioToken','')
-    from_number = data.get('twilioFrom','')
+    twilio = get_twilio_config(session['club_id'])
+    account_sid = twilio['sid']
+    auth_token = twilio['token']
+    from_number = twilio['number']
     if not all([account_sid, auth_token, from_number]):
         return jsonify({'error': 'Identifiants Twilio manquants'}), 400
     try:
@@ -2186,18 +2358,27 @@ def envoyer_sms():
 def sms_reponse():
     from twilio.twiml.messaging_response import MessagingResponse
     from twilio.rest import Client
-    import os
+    from twilio.request_validator import RequestValidator
+
+    auth_token = os.environ.get('TWILIO_TOKEN', '')
+    signature = request.headers.get('X-Twilio-Signature', '')
+    webhook_url = os.environ.get('TWILIO_WEBHOOK_URL', request.url)
+    if request.method == 'POST':
+        if not auth_token or not signature:
+            return jsonify({'error': 'Signature Twilio requise'}), 403
+        if not RequestValidator(auth_token).validate(webhook_url, request.form, signature):
+            return jsonify({'error': 'Signature Twilio invalide'}), 403
+
     expediteur = request.form.get('From', '')
     message    = request.form.get('Body', '')
-    REDIRECT_TO = '+33685603907'
+    redirect_to = os.environ.get('TWILIO_REPLY_REDIRECT_TO', '')
     account_sid = os.environ.get('TWILIO_SID', '')
-    auth_token  = os.environ.get('TWILIO_TOKEN', '')
-    from_number = '+33939247914'
-    if auth_token:
+    from_number = os.environ.get('TWILIO_FROM', '')
+    if account_sid and auth_token and from_number and redirect_to:
         try:
             client = Client(account_sid, auth_token)
             corps = f"📱 Réponse de {expediteur}:\n\n{message}"
-            client.messages.create(body=corps, from_=from_number, to=REDIRECT_TO)
+            client.messages.create(body=corps, from_=from_number, to=redirect_to)
         except Exception as e:
             print(f"Erreur redirection SMS: {e}")
     resp = MessagingResponse()

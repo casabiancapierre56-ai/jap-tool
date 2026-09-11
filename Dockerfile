@@ -13,6 +13,7 @@ COPY . .
 RUN mkdir -p /data
 
 ENV TOURNOIS_DB=/data/tournois.db
+ENV APP_ENV=production
 
 EXPOSE 5000
 
