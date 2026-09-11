@@ -342,18 +342,34 @@ def planning_poule(n):
         rounds.append([(a, b) for (a, b) in paires_r if a < n and b < n])
     return rounds
 
-def calc_planning_poules(poules, heure_debut, duree_match):
-    """Calcule le planning sequentiel (1 terrain par poule) a partir de l'heure de debut."""
+def calc_planning_poules(poules, heure_debut, duree_match, nb_pistes):
+    """Planifie chaque poule sur un terrain reel, sans depasser ``nb_pistes``.
+
+    Une poule reste sur le meme terrain pour garder une feuille de route simple.
+    Quand il y a plus de poules que de terrains, la poule suivante prend le
+    premier terrain qui se libere.
+    """
+    if nb_pistes < 1:
+        raise ValueError('Au moins une piste est requise')
+
     planning = []
-    for ti, poule in enumerate(poules):
+    disponibilites = [hm_to_min(heure_debut)] * nb_pistes
+    for poule in poules:
+        terrain_idx = min(range(nb_pistes), key=lambda idx: (disponibilites[idx], idx))
+        debut_poule = disponibilites[terrain_idx]
         rounds = planning_poule(len(poule))
         matchs = []
         k = 0
         for rnd in rounds:
             for (ia, ib) in rnd:
-                matchs.append({'heure': add_min(heure_debut, k * duree_match), 'pA': poule[ia], 'pB': poule[ib]})
+                matchs.append({
+                    'heure': min_to_hm(debut_poule + k * duree_match),
+                    'pA': poule[ia],
+                    'pB': poule[ib],
+                })
                 k += 1
-        planning.append({'terrain': ti + 1, 'poule': poule, 'matchs': matchs})
+        disponibilites[terrain_idx] = debut_poule + k * duree_match
+        planning.append({'terrain': terrain_idx + 1, 'poule': poule, 'matchs': matchs})
     return planning
 # ── Bracket generique (elimination directe, taille libre) ──
 def seed_positions(size):
@@ -417,7 +433,7 @@ def build_bracket_generique(paires):
     return rounds, next_num
 
 def build_consolante_et_classement(rounds_principal, next_num):
-    # Consolante (perdants du 1er tour) + matchs de classement pour garantir 3 matchs mini (regle FFT)
+    # Consolante (perdants du 1er tour) + matchs de classement.
     if not rounds_principal:
         return [], [], next_num
     round1_losers = [{'placeholder': f"Perdant M{m['num']}"} for m in rounds_principal[0] if m['type'] == 'match']
@@ -752,14 +768,34 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
                 alertes.append({'level':'error', 'message': f'Doublon de licence : {l}'})
             else:
                 lm[lu] = True
-    formats_autorises = ['A1','A2','B1','B2','C1','C2','D1','D2','E','F']
-    fmt_upper = format_jeu.upper()
-    if not any(f in fmt_upper for f in formats_autorises):
+    formats_autorises = {'A1','A2','B1','B2','C1','C2','D1','D2','E','F'}
+    def code_format(valeur):
+        match = re.match(r'^\s*(A1|A2|B1|B2|C1|C2|D1|D2|E|F)\b', valeur.upper())
+        return match.group(1) if match else None
+
+    fmt_code = code_format(format_jeu)
+    if fmt_code not in formats_autorises:
         alertes.append({'level':'error', 'message': f'Format principal non reconnu : {format_jeu}'})
+    elif fmt_code in {'E', 'F'}:
+        alertes.append({
+            'level':'error',
+            'message': (
+                f'Le format {fmt_code} exige au moins 5 matchs proposés par paire. '
+                'Ce modèle TMC en propose 3 : choisis un format A1 à D2.'
+            )
+        })
     if format_jeu_classement and format_jeu_classement != format_jeu:
-        fmt_cls = format_jeu_classement.upper()
-        if not any(f in fmt_cls for f in formats_autorises):
+        fmt_cls = code_format(format_jeu_classement)
+        if fmt_cls not in formats_autorises:
             alertes.append({'level':'error', 'message': f'Format classement non reconnu : {format_jeu_classement}'})
+        elif fmt_cls in {'E', 'F'}:
+            alertes.append({
+                'level':'error',
+                'message': (
+                    f'Le format {fmt_cls} n’est pas compatible avec ce planning à 3 matchs par jour. '
+                    'Choisis un format A1 à D2 pour les matchs de classement.'
+                )
+            })
         else:
             alertes.append({'level':'info', 'message': f'Formats differents : Principal={format_jeu[:25]} | Classement={format_jeu_classement[:25]}'})
     if duree_principal < 30:
@@ -782,7 +818,6 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
         noms = ', '.join([p['nf'] for p in sans_lic[:3]])
         alertes.append({'level':'warning', 'message': f'Licence manquante : {noms}'})
     alertes.append({'level':'info', 'message': f'Balles neuves : matchs 1,2,7,8,15,16,20 - prevoir {7*3} balles minimum'})
-    alertes.append({'level':'info', 'message': '3 matchs minimum garantis par paire - respect FFT OK'})
     return alertes
 
 
@@ -1164,10 +1199,20 @@ def generer():
     except Exception as e:
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
 
-    if len(paires) < 4:
-        return jsonify({'error': f'Minimum 4 paires requises, {len(paires)} trouvees'}), 400
+    if len(paires) not in {8, 12}:
+        return jsonify({
+            'error': (
+                f'Ce modèle TMC est actuellement fiabilisé pour 8 ou 12 paires '
+                f'({len(paires)} trouvées). Utilise le mode libre pour un autre effectif.'
+            )
+        }), 400
+    if nb_pistes < 1:
+        return jsonify({'error': 'Au moins une piste est requise'}), 400
 
     alertes = valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement)
+    erreurs = [a['message'] for a in alertes if a.get('level') == 'error']
+    if erreurs:
+        return jsonify({'error': ' · '.join(erreurs), 'alertes': alertes}), 400
 
     lm, doublons = {}, []
     for p in paires:
@@ -1487,13 +1532,22 @@ def generer_poules_route():
         paires = parse_csv(csv_text)
     except Exception as e:
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
+    if nb_poules < 1:
+        return jsonify({'error': 'Au moins une poule est requise'}), 400
+    if nb_pistes_phase2 < 1:
+        return jsonify({'error': 'Au moins une piste est requise'}), 400
+    nb_pistes = int(data.get('nbPistes', nb_pistes_phase2))
+    if nb_pistes < 1:
+        return jsonify({'error': 'Au moins une piste est requise'}), 400
+    if duree_match < 1:
+        return jsonify({'error': 'La durée d’un match doit être positive'}), 400
     if len(paires) < nb_poules * 3:
         return jsonify({'error': f'Pas assez de paires pour {nb_poules} poules (minimum 3 par poule)'}), 400
     poules = build_poules(paires, nb_poules)
     taille_min = min(len(p) for p in poules)
     if nb_qualifies < 1 or nb_qualifies > taille_min:
         return jsonify({'error': f'Nombre de qualifies invalide (max {taille_min} par poule)'}), 400
-    planning = calc_planning_poules(poules, heure_debut, duree_match)
+    planning = calc_planning_poules(poules, heure_debut, duree_match, nb_pistes)
     t_debut_phase2 = calc_debut_phase2(planning, heure_debut, duree_match)
     rounds_phase2, next_num = build_phase2_poules(poules, nb_qualifies, 1)
     classement_matches, next_num = build_classement_poules(poules, nb_qualifies, next_num)
@@ -1524,6 +1578,7 @@ def generer_poules_route():
     return jsonify({
         'nomTournoi': nom_tournoi, 'dateStr': date_str, 'nbPoules': nb_poules,
         'dureeMatch': duree_match, 'heureDebut': heure_debut, 'nbQualifies': nb_qualifies,
+        'nbPistes': nb_pistes, 'nbPistesPhase2': nb_pistes_phase2,
         'planning': resultat, 'phase2': resultat_phase2, 'classement': resultat_classement
     })
 
@@ -1536,6 +1591,13 @@ def pdf_poules():
     doc = SimpleDocTemplate(packet, pagesize=A4, topMargin=15*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
     story = [Paragraph(f"{data.get('nomTournoi','Tournoi')} — Feuille de route (poules)", styles['Title'])]
     story.append(Paragraph(f"{data.get('dateStr','')} · Format poules · {data.get('dureeMatch',30)} min / match", styles['Normal']))
+    def lbl(p):
+        if p is None:
+            return '?'
+        if 'placeholder' in p:
+            return p['placeholder']
+        return f"{p.get('ts') or ''} {p.get('nc', '?')}".strip()
+
     for t in data.get('planning', []):
         pool_label = ' / '.join(p.get('nc','') for p in t.get('poule', []))
         story.append(Paragraph(f"Terrain {t['terrain']} — Poule : {pool_label}", styles['Heading2']))
@@ -1587,7 +1649,7 @@ def pdf_poules():
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ]))
         story.append(tbl)
-        doc.build(story)
+    doc.build(story)
     packet.seek(0)
     return send_file(packet, mimetype='application/pdf', as_attachment=True, download_name='feuille_route_poules.pdf')
 @app.route('/generer-bracket', methods=['POST'])
