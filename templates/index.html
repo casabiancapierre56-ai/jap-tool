@@ -210,9 +210,9 @@ tr:hover td{background:var(--dk3);}
     <div class="fi"><label>Format — Classement</label><select id="fg-cls"></select><div style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:3px;">Type de classement final à générer</div></div>
     <div class="fi"><label>Mode de génération</label>
       <select id="fmt-mode" onchange="onFmtModeChange()">
-        <option value="fft" selected>Tableau à élimination directe (FFT)</option>
+        <option value="fft" selected>TMC guidé — 8 ou 12 paires</option>
         <option value="poules">Poules (round-robin)</option>
-        <option value="bracket">Tableau à élimination directe (toutes tailles)</option>
+        <option value="bracket">Tableau libre — autres effectifs</option>
       </select>
     </div>
     <div class="fi" id="nbp-block" style="display:none"><label>Nombre de poules</label><input type="number" id="nbp" value="2" min="1" max="20"/></div>
@@ -250,7 +250,7 @@ tr:hover td{background:var(--dk3);}
 
     <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(2)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(4)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📄 DOCUMENTS PDF --><div id="step4" style="display:none;">
     <div class="stl" onclick="toggleStep(4)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">④ Documents à imprimer<span id="chev4">▸</span></div>
-    <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau officiel FFT</button>
+    <button class="btn btn2 btn-pdf-stale" id="b-tab" onclick="dlPdf('tableau')" disabled style="margin-bottom:3px;">📄 Tableau TMC à imprimer</button>
     <button class="btn btn2 btn-pdf-stale" id="b-fdr" onclick="dlPdf('feuille')" disabled style="margin-bottom:3px;">🖨 Feuille de route</button>
     <button class="btn btn2" id="b-fdr-poules" onclick="dlPdfPoules()" disabled style="margin-bottom:3px;display:none;border-color:#25D366;color:#25D366;">📄 Feuille de route (poules)</button>
     <button class="btn btn2" id="b-fdr-bracket" onclick="dlPdfBracket()" disabled style="margin-bottom:3px;display:none;border-color:#3498db;color:#3498db;">🏆 Tableau (toutes tailles)</button>
@@ -582,6 +582,9 @@ async function genererPoules(){
         dateStr,
         heureDebut:document.getElementById('hd').value,
         nbPoules:parseInt(document.getElementById('nbp').value),
+        nbPistes:parseInt(document.getElementById('np').value),
+        nbPistesPhase2:parseInt(document.getElementById('np').value),
+        nbQualifies:2,
         dureeMatch:parseInt(document.getElementById('dp').value),
       })
     });

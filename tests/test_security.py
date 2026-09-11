@@ -312,6 +312,142 @@ class SecurityTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_pool_planning_never_uses_more_courts_than_available(self):
+        pairs = [
+            {'id': index, 'nc': f'Paire {index}'}
+            for index in range(1, 10)
+        ]
+        pools = [pairs[0:3], pairs[3:6], pairs[6:9]]
+
+        planning = jap_app.calc_planning_poules(pools, '09:00', 30, 2)
+
+        self.assertEqual([item['terrain'] for item in planning], [1, 2, 1])
+        self.assertEqual(planning[2]['matchs'][0]['heure'], '10:30')
+        self.assertLessEqual(max(item['terrain'] for item in planning), 2)
+
+    def test_pool_route_respects_phase_one_court_count(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer-poules',
+            json={
+                'csv': self.csv_for_pairs(9),
+                'nbPoules': 3,
+                'nbPistes': 1,
+                'nbPistesPhase2': 1,
+                'nbQualifies': 2,
+                'dureeMatch': 30,
+                'heureDebut': '09:00',
+            },
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data['nbPistes'], 1)
+        self.assertTrue(all(pool['terrain'] == 1 for pool in data['planning']))
+        self.assertEqual([pool['matchs'][0]['heure'] for pool in data['planning']],
+                         ['09:00', '10:30', '12:00'])
+
+    def test_pool_pdf_is_generated_with_phase_two_matches(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+        generated = client.post(
+            '/generer-poules',
+            json={
+                'csv': self.csv_for_pairs(8),
+                'nbPoules': 2,
+                'nbPistes': 2,
+                'nbPistesPhase2': 2,
+                'nbQualifies': 2,
+                'dureeMatch': 30,
+            },
+            headers=headers,
+        )
+        self.assertEqual(generated.status_code, 200)
+
+        response = client.post('/pdf/poules', json=generated.get_json(), headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'application/pdf')
+        self.assertTrue(response.data.startswith(b'%PDF'))
+
+    def test_fixed_table_rejects_more_than_twelve_pairs(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json={'csv': self.csv_for_pairs(13), 'nbPistes': 2},
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('8 ou 12 paires', response.get_json()['error'])
+
+    def test_fixed_table_rejects_unimplemented_intermediate_size(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json={'csv': self.csv_for_pairs(10), 'nbPistes': 2},
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('8 ou 12 paires', response.get_json()['error'])
+
+    def test_three_match_template_rejects_formats_e_and_f(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json={
+                'csv': self.csv_for_pairs(8),
+                'nbPistes': 2,
+                'formatJeu': 'F : 1 set 4 jeux',
+            },
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('au moins 5 matchs', response.get_json()['error'])
+
+    def test_three_match_schedule_rejects_e_or_f_for_classification(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json={
+                'csv': self.csv_for_pairs(8),
+                'nbPistes': 2,
+                'formatJeu': 'D2 : 1 set 9 jeux',
+                'formatJeuClassement': 'F : 1 set 4 jeux',
+            },
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('planning à 3 matchs', response.get_json()['error'])
+
+    def test_validation_errors_block_fixed_table_generation(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+        duplicate_csv = self.csv_for_pairs(8).replace('L8A', 'L1A')
+
+        response = client.post(
+            '/generer',
+            json={'csv': duplicate_csv, 'nbPistes': 2},
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Doublon de licence', response.get_json()['error'])
+
 
 if __name__ == '__main__':
     unittest.main()
