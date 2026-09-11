@@ -7,6 +7,17 @@ Référentiel vérifié le 11 septembre 2026 pour l'année sportive 2027 :
 
 ## Règles déjà contrôlées par l'application
 
+- Le niveau (P25, P50, P100 ou P250) et le type d'épreuve (Dames,
+  Messieurs ou Mixtes) sont choisis explicitement.
+- Les minima de paires du cahier des charges 2027 sont contrôlés :
+
+  | Niveau | Dames | Messieurs | Mixtes |
+  | --- | ---: | ---: | ---: |
+  | P25 | 4 | 4 | 4 |
+  | P50 | 4 | 4 | 4 |
+  | P100 | 4 | 8 | 8 |
+  | P250 | 4 | 12 | 12 |
+
 - Les paires importées sont ordonnées par poids.
 - Les doublons de licence bloquent la génération du TMC guidé.
 - Le TMC guidé propose trois matchs par paire et refuse donc les formats E et F,

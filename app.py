@@ -755,6 +755,34 @@ def generer_pdf_feuille(matchs, nom_tournoi, date_str, sponsor, format_jeu, data
     return out.getvalue()
 
 # ── Validation règlement FFT ─────────────
+FFT_MIN_PAIRES_GUIDEES = {
+    'P25': {'Dames': 4, 'Messieurs': 4, 'Mixtes': 4},
+    'P50': {'Dames': 4, 'Messieurs': 4, 'Mixtes': 4},
+    'P100': {'Dames': 4, 'Messieurs': 8, 'Mixtes': 8},
+    'P250': {'Dames': 4, 'Messieurs': 12, 'Mixtes': 12},
+}
+
+
+def valider_configuration_guidee(niveau, epreuve, nb_paires):
+    """Valide le périmètre FFT couvert par le générateur TMC guidé."""
+    if not isinstance(niveau, str) or not isinstance(epreuve, str) or not niveau or not epreuve:
+        return 'Choisis le niveau et le type d’épreuve avant de générer.'
+    if niveau not in FFT_MIN_PAIRES_GUIDEES:
+        return (
+            f'Le TMC guidé ne couvre pas encore le niveau {niveau}. '
+            'Les contrôles automatiques sont disponibles de P25 à P250.'
+        )
+    if epreuve not in FFT_MIN_PAIRES_GUIDEES[niveau]:
+        return f'Type d’épreuve non reconnu : {epreuve}'
+    minimum = FFT_MIN_PAIRES_GUIDEES[niveau][epreuve]
+    if nb_paires < minimum:
+        return (
+            f'{niveau} {epreuve} : minimum FFT {minimum} paires '
+            f'({nb_paires} trouvées dans le CSV).'
+        )
+    return None
+
+
 def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_classement, format_jeu, contraintes, format_jeu_classement=None):
     alertes = []
     if len(paires) < 4:
@@ -809,8 +837,6 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
         alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee apres minuit ({min_to_hm(h_fin_min)})'})
     elif h_fin_min > 22*60:
         alertes.append({'level':'warning', 'message': f'Fin de tournoi estimee a {min_to_hm(h_fin_min)}'})
-    if duree_classement >= 45 and duree_principal >= 45:
-        alertes.append({'level':'warning', 'message': 'Pour gagner du temps : Format F conseille pour les matchs de classement (~20 min)'})
     if len(paires) % 2 != 0:
         alertes.append({'level':'warning', 'message': f'Nombre de paires impair ({len(paires)})'})
     sans_lic = [p for p in paires if not p.get('licJ1') or not p.get('licJ2')]
@@ -824,7 +850,7 @@ def valider_tournoi(paires, heure_debut, nb_pistes, duree_principal, duree_class
 
 def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_classement,
                      nom_tournoi, date_str, format_jeu, format_jeu_classement,
-                     contraintes, alertes, doublons, qf_map):
+                     contraintes, alertes, doublons, qf_map, niveau, epreuve):
     """Génère un tournoi simplifié pour 8 paires exactes.
     Pas de 1/8 — QF directs numérotés M1-M4."""
 
@@ -998,6 +1024,8 @@ def generer_8_paires(paires, T, heure_debut, nb_pistes, duree_principal, duree_c
         'doublons': doublons,
         'qfMap':    {'0':None,'3':None,'4':None,'7':None},  # Vide pour 8 paires
         'alertes':  alertes,
+        'niveau': niveau,
+        'epreuve': epreuve,
         'formatJeuClassement': format_jeu_classement,
         'nbMatchs': len(matchs),
         'format8paires': True,
@@ -1193,11 +1221,17 @@ def generer():
     format_jeu            = data.get('formatJeu', 'D2 : 1 set 9 jeux, NO-AD')
     format_jeu_classement = data.get('formatJeuClassement', format_jeu)
     contraintes      = data.get('contraintes', {})
+    niveau           = data.get('niveau')
+    epreuve          = data.get('epreuve')
 
     try:
         paires = parse_csv(csv_text)
     except Exception as e:
         return jsonify({'error': f'Erreur CSV : {str(e)}'}), 400
+
+    erreur_configuration = valider_configuration_guidee(niveau, epreuve, len(paires))
+    if erreur_configuration:
+        return jsonify({'error': erreur_configuration}), 400
 
     if len(paires) not in {8, 12}:
         return jsonify({
@@ -1238,7 +1272,7 @@ def generer():
         return generer_8_paires(
             paires, T, heure_debut, nb_pistes, duree_principal, duree_classement,
             nom_tournoi, date_str, format_jeu, format_jeu_classement,
-            contraintes, alertes, doublons, qf_map
+            contraintes, alertes, doublons, qf_map, niveau, epreuve
         )
     # ────────────────────────────────────────────────────────────────────
 
@@ -1440,6 +1474,8 @@ def generer():
         'doublons': doublons,
         'qfMap':    qf_map,
         'alertes':  alertes,
+        'niveau': niveau,
+        'epreuve': epreuve,
         'formatJeuClassement': format_jeu_classement,
     })
 

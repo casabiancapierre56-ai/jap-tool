@@ -189,11 +189,17 @@ tr:hover td{background:var(--dk3);}
     <div class="stl" onclick="toggleStep(1)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">① Infos du tournoi<span id="chev1">▾</span></div>
     <div class="fi"><label>Niveau</label>
       <select id="niveau" onchange="onNiveauChange()">
-        <option value="P25">P25</option><option value="P100">P100</option>
-        <option value="P250" selected>P250</option><option value="P500">P500</option>
-        <option value="P1000">P1000</option><option value="P1500">P1500</option>
-        <option value="P2000">P2000</option>
+        <option value="P25">P25</option><option value="P50">P50</option><option value="P100">P100</option>
+        <option value="P250" selected>P250</option>
       </select>
+    </div>
+    <div class="fi"><label>Épreuve</label>
+      <select id="epreuve" onchange="onEpreuveChange()">
+        <option value="Dames">Dames</option>
+        <option value="Messieurs" selected>Messieurs</option>
+        <option value="Mixtes">Mixtes</option>
+      </select>
+      <div id="config-fft-note" style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-top:4px;"></div>
     </div>
     <div class="fi"><label>Nom</label><input id="nt" value="P250 Double Messieurs Sénior"/></div>
     <div class="fi"><label>Sponsor</label><input id="sp" value="CUPRA LANESTER"/></div>
@@ -497,6 +503,7 @@ function parsePairesPreview(text){
   pairesLoaded.sort((a,b)=>a.poids-b.poids);
   pairesLoaded.forEach((p,i)=>p.id=i+1);
   document.querySelectorAll('.contrainte-select').forEach(updateSelect);
+  updateConfigFftNote();
 }
 
 function updateSelect(sel){
@@ -560,6 +567,7 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');co
 function onFmtModeChange(){
   const mode=document.getElementById('fmt-mode').value;
   document.getElementById('nbp-block').style.display=mode==='poules'?'block':'none';
+  onNiveauChange();
 }
 
 function lancerGeneration(){
@@ -711,6 +719,8 @@ async function generer(){
         dureeMatchClassement:parseInt(document.getElementById('dc').value),
         formatJeu:document.getElementById('fg').value,
         formatJeuClassement:document.getElementById('fg-cls').value,
+        niveau:document.getElementById('niveau').value,
+        epreuve:document.getElementById('epreuve').value,
         contraintes,
       })
     });
@@ -1298,12 +1308,16 @@ const FORMATS_NIVEAUX={
 
 function onNiveauChange(){
   const niveau=document.getElementById('niveau').value;
-  const fmts=FORMATS_NIVEAUX[niveau];
+  const fmts=FORMATS_NIVEAUX[niveau==='P50'?'P250':niveau];
   if(!fmts)return;
+  const guide=document.getElementById('fmt-mode').value==='fft';
+  const compatible=f=>!guide||!/^\s*[EF]\b/.test(f.val);
+  const principaux=fmts.principal.filter(compatible);
+  const classements=fmts.classement.filter(compatible);
   const nt=document.getElementById('nt');
-  if(nt.value.startsWith('P')) nt.value=niveau+' Double Messieurs Senior';
-  document.getElementById('fg').innerHTML=fmts.principal.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
-  document.getElementById('fg-cls').innerHTML=fmts.classement.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
+  if(nt.value.startsWith('P')) nt.value=niveau+' '+document.getElementById('epreuve').value+' Senior';
+  document.getElementById('fg').innerHTML=principaux.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
+  document.getElementById('fg-cls').innerHTML=classements.map((f,i)=>`<option value="${f.val}"${i===0?' selected':''}>${f.label}</option>`).join('');
   // Sélectionner D2 par défaut si disponible
   const d2val='D2 : 1 set 9 jeux, NO-AD, jeu decisif a 7pts a 8/8';
   const fgSel=document.getElementById('fg');
@@ -1313,8 +1327,48 @@ function onNiveauChange(){
   if(fmts.note){
     let noteEl=document.getElementById('niveau-note');
     if(!noteEl){noteEl=document.createElement('div');noteEl.id='niveau-note';noteEl.style='font-size:10px;color:var(--am);font-family:var(--mo);margin-top:4px;padding:6px 10px;background:var(--dk3);border-radius:6px;border-left:3px solid var(--am);';document.getElementById('niveau').parentElement.appendChild(noteEl);}
-    noteEl.textContent='⚠️ '+fmts.note;
+    noteEl.textContent=niveau==='P50'?'Formats proposés pour le P50 selon le référentiel FFT 2027.':'⚠️ '+fmts.note;
   }
+  updateConfigFftNote();
+}
+
+const MIN_PAIRES_FFT={
+  P25:{Dames:4,Messieurs:4,Mixtes:4},
+  P50:{Dames:4,Messieurs:4,Mixtes:4},
+  P100:{Dames:4,Messieurs:8,Mixtes:8},
+  P250:{Dames:4,Messieurs:12,Mixtes:12},
+};
+
+function updateConfigFftNote(){
+  const niveau=document.getElementById('niveau').value;
+  const epreuve=document.getElementById('epreuve').value;
+  const note=document.getElementById('config-fft-note');
+  const minimum=MIN_PAIRES_FFT[niveau]&&MIN_PAIRES_FFT[niveau][epreuve];
+  if(!minimum){
+    note.textContent='TMC guidé non disponible à ce niveau : utilise une organisation validée par le juge-arbitre.';
+    note.style.color='var(--am)';
+    return;
+  }
+  const nb=pairesLoaded.length;
+  if(!nb){
+    note.textContent=`Minimum FFT : ${minimum} paires · importe le CSV pour vérifier.`;
+    note.style.color='var(--tx2)';
+  }else if(nb<minimum){
+    note.textContent=`⛔ ${nb} paires importées · il en manque ${minimum-nb} pour un ${niveau} ${epreuve}.`;
+    note.style.color='#e74c3c';
+  }else if(![8,12].includes(nb)){
+    note.textContent=`⚠️ ${nb} paires importées · cet effectif n'est pas encore couvert par le TMC guidé.`;
+    note.style.color='var(--am)';
+  }else{
+    note.textContent=`✅ ${nb} paires · configuration compatible avec le TMC guidé ${niveau} ${epreuve}.`;
+    note.style.color='var(--gr)';
+  }
+}
+
+function onEpreuveChange(){
+  const nt=document.getElementById('nt');
+  if(nt.value.startsWith('P')) nt.value=document.getElementById('niveau').value+' '+document.getElementById('epreuve').value+' Senior';
+  updateConfigFftNote();
 }
 
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
@@ -1337,6 +1391,7 @@ function sauvegarderSession(){
         fg: document.getElementById('fg').value,
         fgCls: document.getElementById('fg-cls').value,
         niveau: document.getElementById('niveau').value,
+        epreuve: document.getElementById('epreuve').value,
       },
       savedAt: new Date().toLocaleString('fr-FR')
     };
@@ -1378,6 +1433,7 @@ function appliquerRestauration(){
     document.getElementById('dp').value = p.dp || '45';
     document.getElementById('dc').value = p.dc || '45';
     document.getElementById('niveau').value = p.niveau || 'P250';
+    document.getElementById('epreuve').value = p.epreuve || 'Messieurs';
     onNiveauChange();
     genData = session.genData;
     if(session.csvSynthetique) csvText = session.csvSynthetique;
@@ -1422,6 +1478,7 @@ function getTournoiPayload(){
     dateStr:  dt,
     nbPaires: genData ? genData.paires.length : 0,
     niveau:   document.getElementById('niveau').value,
+    epreuve:  document.getElementById('epreuve').value,
     genData:  genData,
     tournoiId: window._tournoiIdEnCours || null,finances: getFinancesPayload(),
     params: {
@@ -1435,6 +1492,7 @@ dc:    document.getElementById('dc').value,
       fg:    document.getElementById('fg').value,
       fgCls: document.getElementById('fg-cls').value,
       niveau:document.getElementById('niveau').value,
+      epreuve:document.getElementById('epreuve').value,
     }
   };
 }
@@ -1524,6 +1582,7 @@ async function nouveauTournoi(){
   document.getElementById('dp').value='45';
   document.getElementById('dc').value='45';
   document.getElementById('niveau').value='P250';
+  document.getElementById('epreuve').value='Messieurs';
   onNiveauChange();
   ['tt','th','tm','tc'].forEach(t=>document.getElementById(t).innerHTML=`<div class="empty"><div class="empty-i">🎾</div>En attente</div>`);
   document.getElementById('ts2').innerHTML='<div class="t-empty"><div style="font-size:32px;margin-bottom:10px;opacity:.3;">🗄️</div>Aucun tournoi sauvegardé</div>';
@@ -1582,7 +1641,9 @@ async function chargerTournoi(tid){
     if(t.error){ alert(t.error); return; }
     const session = t.data;
     const p = session.params;
-    if(p.niveau){ document.getElementById('niveau').value = p.niveau; onNiveauChange(); }
+    if(p.niveau){ document.getElementById('niveau').value = p.niveau; }
+    document.getElementById('epreuve').value = p.epreuve || 'Messieurs';
+    onNiveauChange();
     document.getElementById('nt').value = p.nomTournoi || '';
     document.getElementById('sp').value = p.sponsor || '';
     document.getElementById('dt').value = p.dt || '';

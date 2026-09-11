@@ -103,6 +103,16 @@ class SecurityTestCase(unittest.TestCase):
             )
         return '\n'.join(rows)
 
+    def guided_payload(self, count, **overrides):
+        payload = {
+            'csv': self.csv_for_pairs(count),
+            'nbPistes': 2,
+            'niveau': 'P100',
+            'epreuve': 'Messieurs',
+        }
+        payload.update(overrides)
+        return payload
+
     def test_private_tournament_routes_require_authentication(self):
         client = jap_app.app.test_client()
         self.assertEqual(client.get('/tournoi/liste').status_code, 401)
@@ -115,7 +125,7 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={'csv': self.csv_for_pairs(8), 'nbPistes': 2},
+            json=self.guided_payload(8),
             headers=headers,
         )
 
@@ -131,6 +141,8 @@ class SecurityTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('meta name="csrf-token"', body)
+        self.assertIn('id="epreuve"', body)
+        self.assertIn('<option value="P50">P50</option>', body)
         self.assertNotIn('id="tw-tok"', body)
         self.assertNotIn("localStorage.setItem('tw_tok'", body)
 
@@ -379,7 +391,7 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={'csv': self.csv_for_pairs(13), 'nbPistes': 2},
+            json=self.guided_payload(13),
             headers=headers,
         )
 
@@ -392,7 +404,7 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={'csv': self.csv_for_pairs(10), 'nbPistes': 2},
+            json=self.guided_payload(10),
             headers=headers,
         )
 
@@ -405,11 +417,7 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={
-                'csv': self.csv_for_pairs(8),
-                'nbPistes': 2,
-                'formatJeu': 'F : 1 set 4 jeux',
-            },
+            json=self.guided_payload(8, formatJeu='F : 1 set 4 jeux'),
             headers=headers,
         )
 
@@ -422,12 +430,11 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={
-                'csv': self.csv_for_pairs(8),
-                'nbPistes': 2,
-                'formatJeu': 'D2 : 1 set 9 jeux',
-                'formatJeuClassement': 'F : 1 set 4 jeux',
-            },
+            json=self.guided_payload(
+                8,
+                formatJeu='D2 : 1 set 9 jeux',
+                formatJeuClassement='F : 1 set 4 jeux',
+            ),
             headers=headers,
         )
 
@@ -441,12 +448,65 @@ class SecurityTestCase(unittest.TestCase):
 
         response = client.post(
             '/generer',
-            json={'csv': duplicate_csv, 'nbPistes': 2},
+            json=self.guided_payload(8, csv=duplicate_csv),
             headers=headers,
         )
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('Doublon de licence', response.get_json()['error'])
+
+    def test_p250_mens_event_requires_twelve_pairs(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json=self.guided_payload(8, niveau='P250', epreuve='Messieurs'),
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('minimum FFT 12 paires', response.get_json()['error'])
+
+    def test_p250_womens_event_accepts_eight_pair_template(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json=self.guided_payload(8, niveau='P250', epreuve='Dames'),
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['niveau'], 'P250')
+        self.assertEqual(response.get_json()['epreuve'], 'Dames')
+
+    def test_guided_mode_rejects_levels_not_yet_covered(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json=self.guided_payload(8, niveau='P500'),
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('de P25 à P250', response.get_json()['error'])
+
+    def test_guided_mode_requires_explicit_event_configuration(self):
+        client = jap_app.app.test_client()
+        headers = self.authenticate(client, self.club_a)
+
+        response = client.post(
+            '/generer',
+            json={'csv': self.csv_for_pairs(8), 'nbPistes': 2},
+            headers=headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('niveau et le type d’épreuve', response.get_json()['error'])
 
 
 if __name__ == '__main__':
