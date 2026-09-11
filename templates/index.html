@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
 <title>JAP Tool — Padel FFT</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -267,11 +268,9 @@ tr:hover td{background:var(--dk3);}
     <div class="div"></div>
 
     <div style="display:flex;gap:8px;margin-top:10px;"><button onclick="toggleStep(4)" class="btn btn2" style="flex:1;width:auto;margin-top:0;">◀ Précédent</button><button onclick="toggleStep(6)" class="btn" style="flex:1;width:auto;margin-top:0;">Suivant ▶</button></div></div><!-- 📱 ENVOI SMS / WHATSAPP --><div id="step6" style="display:none;">
-    <div class="stl" onclick="toggleStep(6)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑥ Envoyer les convocations<span id="chev6">▸</span></div><button type="button" onclick="document.getElementById('tw-box').style.display=document.getElementById('tw-box').style.display==='block'?'none':'block';" style="background:none;border:none;color:var(--tx2);font-size:10px;font-family:var(--mo);cursor:pointer;text-decoration:underline;padding:0;margin-bottom:6px;">⚙️ Config. Twilio (SID / Token)</button>
-    <div class="tw-box" id="tw-box" style="display:none;padding:10px;margin-bottom:6px;">
-      <div class="fi" style="margin-bottom:6px;"><label>Account SID</label><input id="tw-sid" type="password" placeholder="ACxxxxxxxx" oninput="saveTwilio()"/></div>
-      <div class="fi" style="margin-bottom:6px;"><label>Auth Token</label><input id="tw-tok" type="password" placeholder="xxxxxxxx" oninput="saveTwilio()"/></div>
-      <div class="fi" style="margin-bottom:8px;"><label>Numéro Twilio</label><input id="tw-num" placeholder="+33xxxxxxxxx" oninput="saveTwilio()"/></div>
+    <div class="stl" onclick="toggleStep(6)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">⑥ Envoyer les convocations<span id="chev6">▸</span></div>
+    <div class="tw-box" id="tw-box" style="display:block;padding:10px;margin-bottom:6px;">
+      <div id="messaging-status" style="font-size:10px;color:var(--tx2);font-family:var(--mo);margin-bottom:8px;">Vérification de la messagerie sécurisée…</div>
       <div class="row2" style="margin-bottom:5px;">
         <button class="btn btn2" onclick="apercuMessages()" style="border-color:#9b59b6;color:#9b59b6;font-size:11px;">👁 Aperçu</button>
         <button class="btn btn2" onclick="afficherHistoriqueSMS()" style="font-size:11px;">📊 Historique</button>
@@ -448,8 +447,19 @@ tr:hover td{background:var(--dk3);}
 </div>
 
 <script>
+const csrfToken=document.querySelector('meta[name="csrf-token"]').content;
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,init={})=>{
+  const method=(init.method||'GET').toUpperCase();
+  const rawUrl=typeof input==='string'?input:input.url;
+  const sameOrigin=new URL(rawUrl,window.location.href).origin===window.location.origin;
+  if(sameOrigin&&!['GET','HEAD','OPTIONS'].includes(method)){
+    init={...init,headers:{...(init.headers||{}),'X-CSRF-Token':csrfToken}};
+  }
+  return nativeFetch(input,init);
+};
 let csvText='', genData=null, pairesLoaded=[];
-let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;}catch(e){}}function toggleStep(n){for(var i=1;i<=6;i++){var el=document.getElementById('step'+i);var dot=document.getElementById('dot'+i);if(el)el.style.display=(i===n?'block':'none');if(dot)dot.classList.toggle('active',i===n);}}toggleStep(1);afficherUserChip();
+let editPaireId=null, forfaitPaireId=null;function calcFinances(){const tarif=parseFloat(document.getElementById('fin-tarif').value)||0;const nb=genData&&genData.paires?genData.paires.length:0;document.getElementById('fin-nbpaires').value=nb;const juge=parseFloat(document.getElementById('fin-juge').value)||0;const balles=parseFloat(document.getElementById('fin-balles').value)||0;const fft=parseFloat(document.getElementById('fin-fft').value)||0;const ca=tarif*nb;const couts=juge+balles+fft;const marge=ca-couts;document.getElementById('fin-ca').value=ca.toFixed(2)+' €';document.getElementById('fin-couts').value=couts.toFixed(2)+' €';document.getElementById('fin-marge').value=marge.toFixed(2)+' €';document.getElementById('fin-marge').style.color=marge>=0?'var(--gr)':'#e74c3c';}function getFinancesPayload(){return{tarif:parseFloat(document.getElementById('fin-tarif').value)||0,coutJuge:parseFloat(document.getElementById('fin-juge').value)||0,coutBalles:parseFloat(document.getElementById('fin-balles').value)||0,coutFFT:parseFloat(document.getElementById('fin-fft').value)||0};}function chargerFinancesDansUI(f){if(!f)return;document.getElementById('fin-tarif').value=(f.tarif!==undefined?f.tarif:25);document.getElementById('fin-juge').value=f.coutJuge||0;document.getElementById('fin-balles').value=f.coutBalles||0;document.getElementById('fin-fft').value=f.coutFFT||0;calcFinances();}async function sauvegarderFinances(){if(!genData){alert('Genere un tableau avant de sauvegarder les finances.');return;}await sauvegarderEnBaseAuto();showToast('Finances enregistrees');}async function afficherUserChip(){try{const r=await fetch('/api/session');const s=await r.json();const el=document.getElementById('user-chip');if(el&&s&&s.club_nom)el.textContent=(s.user_nom?s.user_nom+' · ':'')+s.club_nom;window.messagingConfigured=!!s.sms_configured;window.whatsappConfigured=!!s.whatsapp_configured;const status=document.getElementById('messaging-status');if(status){const modes=[window.messagingConfigured?'SMS':'',window.whatsappConfigured?'WhatsApp':''].filter(Boolean).join(' + ');status.textContent=modes?'✅ '+modes+' configuré(s) et sécurisé(s) côté serveur':'⚠️ Messagerie non configurée pour ce club';status.style.color=modes?'var(--gr)':'var(--am)';}}catch(e){window.messagingConfigured=false;window.whatsappConfigured=false;}}function toggleStep(n){for(var i=1;i<=6;i++){var el=document.getElementById('step'+i);var dot=document.getElementById('dot'+i);if(el)el.style.display=(i===n?'block':'none');if(dot)dot.classList.toggle('active',i===n);}}toggleStep(1);afficherUserChip();
 
 function st(n){
   ['tt','th','tm','tc','ts2','tf'].forEach(t=>document.getElementById(t).style.display=t===n?'block':'none');
@@ -758,16 +768,13 @@ async function dlPdf(type){
 
 async function envoyerSMS(){
   if(!genData?.messages)return;
-  const sid=document.getElementById('tw-sid').value;
-  const tok=document.getElementById('tw-tok').value;
-  const num=document.getElementById('tw-num').value;
-  if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio !');return;}
+  if(!window.messagingConfigured){alert('La messagerie Twilio doit être configurée côté serveur.');return;}
   const nbJoueurs = genData.messages.filter(m=>m.telClean).length;
   if(!confirm(`⚠️ Confirmer l'envoi SMS\n\nTu es sur le point d'envoyer ${nbJoueurs} SMS de convocation.\n\nChaque SMS sera facturé sur ton compte Twilio.\n\nConfirmer l'envoi ?`)) return;
   const btn=event.target; btn.disabled=true; btn.textContent='📤 Envoi...';
   try {
     const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:genData.messages,twilioSid:sid,twilioToken:tok,twilioFrom:num})});
+      body:JSON.stringify({messages:genData.messages})});
     const data=await r.json();
     const el=document.getElementById('sms-res');
     el.style.display='block';
@@ -907,17 +914,14 @@ function copyMsg(i){
   });
 }
 async function envoyerSMSUn(i){
-  const sid=document.getElementById('tw-sid').value;
-  const tok=document.getElementById('tw-tok').value;
-  const num=document.getElementById('tw-num').value;
-  if(!sid||!tok||!num){alert('Remplis les 3 champs Twilio en bas à gauche !');return;}
+  if(!window.messagingConfigured){alert('La messagerie Twilio doit être configurée côté serveur.');return;}
   const m=_msgData[i];
   if(!m)return;
   const btn=document.getElementById('sms-btn-'+i);
   btn.disabled=true; btn.textContent='⏳';
   try {
     const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:[m],twilioSid:sid,twilioToken:tok,twilioFrom:num})});
+      body:JSON.stringify({messages:[m]})});
     const data=await r.json();
     if(data.sent===1){
       btn.textContent='✅'; btn.style.background='#1a4a2e'; btn.style.color='#4ade80';
@@ -974,7 +978,7 @@ function raz(){
   document.getElementById('b-wa').disabled=true;
   document.getElementById('b-ajout').disabled=true;
   document.getElementById('b-accueil').disabled=true;
-  localStorage.removeItem('jap_session');
+  sessionStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
   document.getElementById('contraintes-list').innerHTML='';
@@ -1313,20 +1317,6 @@ function onNiveauChange(){
 document.getElementById('dt').value=new Date().toISOString().split('T')[0];
 onNiveauChange();
 
-function saveTwilio(){
-  localStorage.setItem('tw_sid', document.getElementById('tw-sid').value);
-  localStorage.setItem('tw_tok', document.getElementById('tw-tok').value);
-  localStorage.setItem('tw_num', document.getElementById('tw-num').value);
-}
-function loadTwilio(){
-  const sid=localStorage.getItem('tw_sid');
-  const tok=localStorage.getItem('tw_tok');
-  const num=localStorage.getItem('tw_num');
-  if(sid) document.getElementById('tw-sid').value=sid;
-  if(tok) document.getElementById('tw-tok').value=tok;
-  if(num) document.getElementById('tw-num').value=num;
-}
-
 function sauvegarderSession(){
   if(!genData) return;
   try {
@@ -1347,13 +1337,13 @@ function sauvegarderSession(){
       },
       savedAt: new Date().toLocaleString('fr-FR')
     };
-    localStorage.setItem('jap_session', JSON.stringify(session));
+    sessionStorage.setItem('jap_session', JSON.stringify(session));
   } catch(e) { console.error('Erreur sauvegarde session:', e); }
 }
 
 function restaurerSession(){
   try {
-    const raw = localStorage.getItem('jap_session');
+    const raw = sessionStorage.getItem('jap_session');
     if(!raw) return;
     const session = JSON.parse(raw);
     if(!session.genData) return;
@@ -1373,7 +1363,7 @@ function restaurerSession(){
 
 function appliquerRestauration(){
   try {
-    const raw = localStorage.getItem('jap_session');
+    const raw = sessionStorage.getItem('jap_session');
     if(!raw) return;
     const session = JSON.parse(raw);
     const p = session.params;
@@ -1416,7 +1406,6 @@ function toggleTheme(){
   else{root.classList.add('light');btn.textContent='🌙 Mode sombre';localStorage.setItem('theme','light');}
 }
 if(localStorage.getItem('theme')!=='dark'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='🌙 Mode sombre';}
-loadTwilio();
 restaurerSession();
 
 // ══════════════════════════════════════
@@ -1519,7 +1508,7 @@ async function nouveauTournoi(){
   document.getElementById('b-wa').disabled=true;
   document.getElementById('b-ajout').disabled=true;
   document.getElementById('b-accueil').disabled=true;
-  localStorage.removeItem('jap_session');
+  sessionStorage.removeItem('jap_session');
   document.getElementById('tw-box').style.display='none';
   document.getElementById('fi-csv').value='';
   document.getElementById('contraintes-list').innerHTML='';
@@ -1794,11 +1783,7 @@ function renvoyerConvocation(paireNom){
   const msgs = _msgData.filter(m => m.paire === paireNom);
   if(!msgs.length){ alert('Paire introuvable dans les messages.'); return; }
 
-  const sid = document.getElementById('tw-sid').value;
-  const tok = document.getElementById('tw-tok').value;
-  const num = document.getElementById('tw-num').value;
-
-  if(!sid||!tok||!num){
+  if(!window.messagingConfigured){
     // Pas de Twilio configuré → ouvrir WhatsApp
     msgs.forEach(m => {
       if(m.telClean) window.open('https://wa.me/'+m.telClean+'?text='+encodeURIComponent(m.msg), '_blank');
@@ -1810,7 +1795,7 @@ function renvoyerConvocation(paireNom){
   // Twilio configuré → envoyer SMS
   if(!confirm('Renvoyer la convocation SMS à ' + paireNom + ' ?')) return;
   fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({messages:msgs,twilioSid:sid,twilioToken:tok,twilioFrom:num})})
+    body:JSON.stringify({messages:msgs})})
   .then(r=>r.json())
   .then(data=>{
     if(data.sent > 0) showToast('✅ SMS renvoyé à ' + paireNom);
@@ -1968,11 +1953,7 @@ async function renvoyerTousImpactes(){
   const msgs = _msgData.filter(m=>nomsPaires.includes(m.paire));
   if(!msgs.length){showToast('Aucun message trouvé pour ces paires.');return;}
 
-  const sid=document.getElementById('tw-sid').value;
-  const tok=document.getElementById('tw-tok').value;
-  const num=document.getElementById('tw-num').value;
-
-  if(!sid||!tok||!num){
+  if(!window.messagingConfigured){
     // WhatsApp
     msgs.forEach(m=>{
       if(m.telClean) window.open('https://wa.me/'+m.telClean+'?text='+encodeURIComponent(m.msg),'_blank');
@@ -1983,7 +1964,7 @@ async function renvoyerTousImpactes(){
 
   if(!confirm('Renvoyer SMS à '+msgs.length+' joueur(s) impacté(s) ?')) return;
   const r=await fetch('/sms/envoyer',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({messages:msgs,twilioSid:sid,twilioToken:tok,twilioFrom:num})});
+    body:JSON.stringify({messages:msgs})});
   const data=await r.json();
   showToast(data.sent>0?'✅ '+data.sent+' SMS envoyés aux paires impactées':'❌ Erreur envoi');
 }
@@ -2279,9 +2260,7 @@ function mettreAJourHeaderTitre(){
 async function envoyerTousWhatsAppAuto(){
   if(!genData?.messages){ alert('Génère le tableau d\'abord !'); return; }
 
-  const sid = document.getElementById('tw-sid').value;
-  const tok = document.getElementById('tw-tok').value;
-  if(!sid || !tok){ alert('Remplis les champs Twilio SID et Token !'); return; }
+  if(!window.whatsappConfigured){ alert('La messagerie WhatsApp doit être configurée côté serveur.'); return; }
 
   const nbJoueurs = genData.messages.filter(m=>m.telClean).length;
   if(!confirm(`📲 Envoyer les convocations WhatsApp\n\n${nbJoueurs} joueurs seront contactés automatiquement depuis le numéro Arena18 (+33671327427).\n\nChaque joueur recevra :\n1. Message de convocation personnalisé\n2. Liste complète des paires du tournoi\n\nConfirmer l'envoi ?`)) return;
@@ -2328,7 +2307,6 @@ async function envoyerTousWhatsAppAuto(){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         messages,
-        sid, token: tok,
         nomTournoi: document.getElementById('nt').value,
         dateStr,
         listePaires,
